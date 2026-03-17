@@ -1,9 +1,9 @@
 {
-  "name": "occasioncards",
+  "name": "cardify",
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://renadaligh.github.io/OccasionCards",
+  "homepage": "https://renadaligh.github.io/Cardify",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

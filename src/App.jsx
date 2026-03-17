@@ -200,7 +200,7 @@ export default function App() {
 
             <p style={modalStyles.text}>
               {lang === "ar"
-                ? "من فضلك اكتبي الاسم أولًا قبل تحميل البطاقة."
+                ? "من فضلك اكتب الاسم أولًا قبل تحميل البطاقة."
                 : "Please enter your name before downloading the card."}
             </p>
 
