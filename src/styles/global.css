@@ -14,5 +14,11 @@ body,
 }
 
 body {
-  font-family: "Calibri", "Cairo", "Carlito", "Segoe UI", sans-serif;
+  font-family: "MyCalibri";
+}
+
+@font-face {
+  font-family: "MyCalibri";
+  src: url("../assets/fonts/Calibri.ttf") format("truetype");
+  font-weight: 400;
 }
