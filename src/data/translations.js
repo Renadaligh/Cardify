@@ -1,0 +1,28 @@
+export const translations = {
+  ar: {
+    heroTitle: "أنشئ بطاقة معايدتك",
+    heroSubtitle: "اختر القالب، أضف اسمك، وحمّل بطاقتك خلال ثوانٍ.",
+    start: "ابدأ الآن!",
+    template: "القالب",
+    name: "الاسم",
+    namePlaceholder: "اسمك هنا",
+    download: "حفظ الصورة",
+    dark: "الوضع الداكن",
+    light: "الوضع الفاتح",
+    english: "English",
+    arabic: "العربية",
+  },
+  en: {
+    heroTitle: "Make Your Eid Card",
+    heroSubtitle: "Choose a template, add your name, and download your card in seconds.",
+    start: "Lets go!",
+    template: "Template",
+    name: "Name",
+    namePlaceholder: "Your name here",
+    download: "Download",
+    dark: "Dark Mode",
+    light: "Light Mode",
+    english: "English",
+    arabic: "العربية",
+  },
+};

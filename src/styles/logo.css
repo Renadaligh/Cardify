@@ -1,0 +1,12 @@
+.hero-logo {
+  width: 100px;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
+@media (max-width: 640px) {
+  .hero-logo {
+    width: 72px;
+  }
+}
