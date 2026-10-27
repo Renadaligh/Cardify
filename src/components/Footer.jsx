@@ -1,19 +1,40 @@
+import { useApp } from "../context";
+
+const LINKS = [
+  {
+    label: "LinkedIn",
+    href: "https://www.linkedin.com/in/renadalgh",
+    icon: (
+      <path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM3 9.75h4v11H3v-11zm6.5 0h3.8v1.5h.05c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.78 2.65 4.78 6.1v5.45h-4v-4.83c0-1.15-.02-2.63-1.6-2.63-1.6 0-1.85 1.25-1.85 2.55v4.91h-4v-11z" />
+    ),
+  },
+  {
+    label: "GitHub",
+    href: "https://github.com/Renadaligh",
+    icon: (
+      <path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.56 9.56 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2z" />
+    ),
+  },
+];
+
 export default function Footer() {
+  const { lang } = useApp();
   const year = new Date().getFullYear();
 
   return (
-    <footer style={styles.footer}>
-      <p>Made by Renad Alghamdi © {year}</p>
+    <footer className="footer">
+      <p>
+        {lang === "ar" ? "تصميم وتطوير ريناد الغامدي" : "Designed & developed by Renad Alghamdi"} © {year}
+      </p>
+      <div className="footer-links">
+        {LINKS.map((link) => (
+          <a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer" aria-label={link.label} title={link.label}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              {link.icon}
+            </svg>
+          </a>
+        ))}
+      </div>
     </footer>
   );
 }
-
-const styles = {
-  footer: {
-    textAlign: "center",
-    padding: "30px 20px",
-    fontSize: "0.9rem",
-    opacity: 0.8,
-    fontFamily: "inherit",
-  },
-};

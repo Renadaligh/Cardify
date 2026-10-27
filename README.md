@@ -1,16 +1,86 @@
-# React + Vite
+# Cardify
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+موقع لتصميم بطاقات التهنئة وشهادات الشكر لكل مناسبة، يعمل كاملًا في المتصفح بدون خادم.
 
-Currently, two official plugins are available:
+## المزايا
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **١٤ مناسبة**: رمضان، العيدين، اليوم الوطني، يوم التأسيس، يوم العلم، يوم المعلم، التخرج، نهاية العام الدراسي، الزواج، المولود، الترقية، التقاعد، والشكر والتقدير.
+- **قوالب بطبقات**: الخلفية صورة أو تصميم مولّد بالكود، والنصوص والشعار طبقات فوقها تُرسم على Canvas.
+- **إهداء اختياري**: الاسم فقط، أو «إلى / من».
+- **تخصيص**: العبارة (جاهزة أو من كتابتك)، لغة البطاقة، الخط، لون الاسم، لون الهوية، حجم النص، وسحب العناصر بالماوس أو الإصبع.
+- **شعار الشركة**: يُرفع ويبقى في جهاز المستخدم فقط.
+- **مقاسان**: مربع للمنشورات، وطولي للستوري والحالة.
+- **مشاركة مباشرة** من الجوال (واتساب وغيره) عبر Web Share API.
+- **بطاقات بالجملة**: قائمة أسماء أو ملف Excel/CSV ← ملف ZIP فيه بطاقة لكل اسم.
+- **شهادات المعلمين**: ٥ تصاميم، ترويسة، شعار المدرسة، توقيع مرسوم أو مرفوع، تاريخ هجري أو ميلادي، PDF بمقاس A4 جاهز للطباعة، وشهادات بالجملة في ملف PDF واحد.
+- عربي وإنجليزي، ووضع داكن، وألوان الموقع تتغير حسب المناسبة.
 
-## React Compiler
+## التشغيل
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm install
+npm run dev
+```
 
-## Expanding the ESLint configuration
+النشر على GitHub Pages:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm run deploy
+```
+
+## هيكل المشروع
+
+```
+src/
+  data/
+    occasions.js       المناسبات: العناوين، العبارات، الألوان، والقوالب المولّدة لكل مناسبة
+    imageTemplates.js  القوالب المصممة كصور ومواضع الاسم والشعار فيها
+    palettes.js        ألوان القوالب المولّدة
+    certificates.js    نصوص الشهادات
+    translations.js    نصوص الواجهة (عربي/إنجليزي)
+  engine/
+    designs.js         التصاميم المولّدة بالكود (هلال، قوس، سدو، سبورة…)
+    cardRenderer.js    يرسم البطاقة: الخلفية + النصوص + الشعار
+    certRenderer.js    يرسم الشهادة
+    fonts.js           الخطوط العربية (Google Fonts)
+  lib/                 ملفات PDF وZIP وقراءة Excel بدون مكتبات خارجية
+  pages/               الرئيسية، محرر البطاقات، الشهادات
+  components/          مكونات الواجهة
+```
+
+### إضافة قالب صورة
+
+1. صمّم الخلفية بمقاس 1080×1080 بدون الاسم، وضعها في `public/templates/`.
+2. أضف عنصرًا في `src/data/imageTemplates.js` يحدد المناسبات، ولون الاسم، ومكانه (`y` من 0 إلى 1)، ومكان الشعار.
+
+### إضافة قالب مولّد لمناسبة
+
+أضف `["اسم التصميم", "اسم الألوان"]` إلى قائمة `designs` للمناسبة في `src/data/occasions.js`.
+
+### إضافة شهادة بتصميمك
+
+1. صمّمي الخلفية بمقاس A4 بالعرض **3508 × 2480** بكسل، واتركي المناطق الملونة في `docs/certificate-guide.png` فاضية. تقدرين تحطين الصورة كطبقة مرجعية فوق تصميمك في Canva أو Figma.
+2. ضعي الملف في `public/certificates/`.
+3. أضيفي عنصرًا في `src/data/certificateTemplates.js` (فيه مثال وشرح لكل خيار: ألوان النص، ومكان كل جزء، وإخفاء العنوان لو كان جزء من تصميمك).
+
+تصاميمك تظهر أول شي في قائمة التصميم، قبل التصاميم الجاهزة.
+
+### دليل تصميم البطاقات
+
+`docs/card-guide.png` يوضح مساحة الاسم والشعار في بطاقة 1080 × 1080.
+
+### علم اليوم الوطني
+
+مشهد اليوم الوطني يستخدم ملف العلم الرسمي `public/flags/sa.svg` عشان تطلع الشهادة بخط الثلث الصحيح. إذا الملف مو موجود، يظهر رسم مؤقت مبسّط.
+
+### تعديل سماء الواجهة الرئيسية
+
+كل مشاهد السماء (رمضان، العيد، اليوم الوطني، التخرج) في `src/hero/skyScenes.js`. كل مشهد عنصر في `SCENES` فيه الكلمة اللي تظهر في العنوان ودالة الرسم. تقدرين تغيرين الألوان، أو تحذفين مشهد، أو تنسخين واحد وتعدلينه لمناسبة جديدة. ومدة المشهد في `SCENE_LEN`.
+
+### إضافة مناسبة
+
+أضف عنصرًا جديدًا إلى `OCCASIONS` في `src/data/occasions.js`.
+
+---
+
+تصميم وتطوير ريناد الغامدي · [LinkedIn](https://www.linkedin.com/in/renadalgh) · [GitHub](https://github.com/Renadaligh)
