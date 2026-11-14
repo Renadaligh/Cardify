@@ -1602,3 +1602,16 @@ input[type="range"] {
     font-size: 0.72rem;
   }
 }
+
+/* Mobile: a slightly taller sky, with breathing room before the next section.
+   The text stays centred in the first screen. */
+@media (max-width: 640px) {
+  .hero-sky {
+    height: max(640px, 112svh);
+    margin-bottom: 44px;
+  }
+
+  .hero-sky-copy {
+    top: max(320px, 50svh);
+  }
+}
