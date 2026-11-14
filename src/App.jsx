@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppContext } from "./context";
 import { navigate, useRoute } from "./lib/router";
 import { translations } from "./data/translations";
-import { DEFAULT_THEME, getOccasion } from "./data/occasions";
+import { DEFAULT_THEME, getOccasion, kindOf } from "./data/occasions";
 import Background from "./components/Background";
 import TopBar from "./components/TopBar";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
 import Editor from "./pages/Editor";
+import InviteEditor from "./pages/InviteEditor";
 import Certificates from "./pages/Certificates";
 
 const CERT_THEME = { accent: "#2563eb", blobs: ["#3b82f6", "#f59e0b", "#14b8a6"] };
@@ -35,9 +36,13 @@ export default function App() {
   const [heroTint, setHeroTint] = useState(null);
   // Category filter of the occasions list, shared so the header can open it on a category.
   const [occasionFilter, setOccasionFilter] = useState("all");
+  // Which section the home list shows: greetings, announcements or invitations.
+  const [homeSection, setHomeSection] = useState("greetings");
   const [scrollRequest, setScrollRequest] = useState(0);
-  const showCategory = useCallback((group) => {
-    setOccasionFilter(group);
+  const showSection = useCallback((section) => {
+    if (section === "certificates") return navigate("/certificates");
+    setHomeSection(section);
+    setOccasionFilter("all");
     if (window.location.hash.replace(/^#/, "") && window.location.hash !== "#/") navigate("/");
     setScrollRequest(Date.now());
   }, []);
@@ -82,18 +87,34 @@ export default function App() {
     setHeroTint,
     occasionFilter,
     setOccasionFilter,
+    homeSection,
+    setHomeSection,
     scrollRequest,
-    showCategory,
+    showSection,
   };
+
+  const occasion = route.page === "editor" ? getOccasion(route.occasionId) : null;
+  // Header highlight: the section of the page being shown.
+  const currentSection =
+    route.page === "certificates"
+      ? "certificates"
+      : occasion
+        ? { greeting: "greetings", announcement: "announcements", invitation: "invitations" }[kindOf(occasion)]
+        : null;
 
   return (
     <AppContext.Provider value={context}>
       <div className="app">
         <Background colors={theme.blobs} />
         <div className="app-content">
-          <TopBar current={route.page === "editor" ? route.occasionId : route.page} />
+          <TopBar current={route.page === "editor" ? route.occasionId : route.page} section={currentSection} />
           {route.page === "home" && <Home />}
-          {route.page === "editor" && <Editor key={route.occasionId} occasionId={route.occasionId} />}
+          {route.page === "editor" &&
+            (kindOf(occasion) === "invitation" ? (
+              <InviteEditor key={route.occasionId} occasionId={route.occasionId} />
+            ) : (
+              <Editor key={route.occasionId} occasionId={route.occasionId} />
+            ))}
           {route.page === "certificates" && <Certificates />}
         </div>
         <Footer />

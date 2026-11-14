@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useApp } from "../context";
 import { navigate } from "../lib/router";
 import MenuDrawer from "./MenuDrawer";
-import { GROUPS } from "../data/occasions";
+import { SECTIONS } from "../data/occasions";
 
-export default function TopBar({ current }) {
+export default function TopBar({ current, section }) {
   const isHome = current === "home";
   const [scrolled, setScrolled] = useState(false);
   const [moved, setMoved] = useState(false);
@@ -29,7 +29,7 @@ export default function TopBar({ current }) {
   const onSky = isHome && !scrolled;
 
   // The bar is fixed, so other pages get a spacer with its resting height (no jump when it shrinks).
-  const { t, lang, setLang, showCategory, occasionFilter } = useApp();
+  const { t, lang, setLang, showSection, homeSection } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const base = import.meta.env.BASE_URL;
@@ -45,14 +45,14 @@ export default function TopBar({ current }) {
       </button>
 
       <nav className="topbar-nav" dir={lang === "ar" ? "rtl" : "ltr"} aria-label={t.occasionsTitle}>
-        {GROUPS.map((g) => (
+        {SECTIONS.map((s) => (
           <button
-            key={g.id}
+            key={s.id}
             className="nav-link"
-            aria-current={isHome && occasionFilter === g.id ? "true" : undefined}
-            onClick={() => showCategory(g.id)}
+            aria-current={(isHome ? homeSection : section) === s.id ? "true" : undefined}
+            onClick={() => showSection(s.id)}
           >
-            {g.name[lang]}
+            {s.name[lang]}
           </button>
         ))}
       </nav>

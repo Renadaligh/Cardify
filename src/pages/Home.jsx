@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "../context";
 import { navigate } from "../lib/router";
-import { GROUPS, OCCASIONS, templatesFor } from "../data/occasions";
+import { GROUPS, OCCASIONS, SECTIONS, templatesFor } from "../data/occasions";
+import { ANNOUNCEMENTS } from "../data/announcements";
+import { INVITATIONS, inviteSample } from "../data/invitations";
+import { inviteThumbnail, clearInviteThumbnails } from "../engine/inviteRenderer";
 import { ensureFonts } from "../engine/fonts";
 import { templateThumbnail, clearThumbnailCache } from "../engine/cardRenderer";
 import { renderCertificate } from "../engine/certRenderer";
@@ -12,11 +15,11 @@ import { SCENES } from "../hero/skyScenes";
 const FAN_SIZE = 3;
 
 /** One occasion: a fan of its real templates that spreads on hover / focus. */
-function OccasionTile({ occasion, lang, t, fan, group }) {
+function OccasionTile({ occasion, lang, t, fan, group, tall }) {
   const count = templatesFor(occasion).length;
   return (
     <button
-      className="occ-tile"
+      className={`occ-tile${tall ? " occ-tile-tall" : ""}`}
       style={{ "--occ": occasion.theme.accent }}
       onClick={() => navigate(`/o/${occasion.id}`)}
     >
@@ -70,7 +73,7 @@ export default function Home() {
   const { t, lang, setHeroTint } = useApp();
   const occasionsRef = useRef(null);
   const [fans, setFans] = useState({});
-  const { occasionFilter: filter, setOccasionFilter: setFilter, scrollRequest } = useApp();
+  const { occasionFilter: filter, setOccasionFilter: setFilter, scrollRequest, homeSection, setHomeSection } = useApp();
 
   // Opened from a category in the header: scroll down to the occasions.
   useEffect(() => {
@@ -81,7 +84,17 @@ export default function Home() {
 
   const [cert, setCert] = useState(null);
   const groupName = Object.fromEntries(GROUPS.map((g) => [g.id, g.name[lang]]));
-  const visible = OCCASIONS.filter((o) => filter === "all" || o.group === filter);
+  const section = SECTIONS.find((s) => s.id === homeSection) || SECTIONS[0];
+  const visible =
+    section.id === "greetings" ? OCCASIONS.filter((o) => filter === "all" || o.group === filter) : section.items;
+  const tileGroup = (o) =>
+    section.id === "greetings"
+      ? groupName[o.group]
+      : section.id === "invitations"
+        ? o.group === "business"
+          ? t.inviteBusiness
+          : t.invitePersonal
+        : section.name[lang];
 
   // Fans of real templates for every occasion, drawn a few at a time so scrolling stays smooth.
   useEffect(() => {
@@ -89,14 +102,19 @@ export default function Home() {
     (async () => {
       await ensureFonts();
       clearThumbnailCache();
+      clearInviteThumbnails();
       const next = {};
-      for (const occasion of OCCASIONS) {
+      for (const occasion of [...OCCASIONS, ...ANNOUNCEMENTS, ...INVITATIONS]) {
         const list = templatesFor(occasion).slice(0, FAN_SIZE);
         const urls = [];
         for (const tpl of list) {
           const img = tpl.kind === "image" ? await loadImage(tpl.src).catch(() => null) : null;
           if (tpl.kind === "image" && !img) continue;
-          urls.push(templateThumbnail(tpl, occasion, lang, img));
+          urls.push(
+            occasion.kind === "invitation"
+              ? inviteThumbnail(tpl, inviteSample(occasion, lang), img)
+              : templateThumbnail(tpl, occasion, lang, img)
+          );
         }
         next[occasion.id] = urls;
         if (cancelled) return;
@@ -140,24 +158,52 @@ export default function Home() {
       </HeroSky>
 
       <section ref={occasionsRef} className="container section occasions-section">
-        <div className="section-head">
-          <h2>{t.occasionsTitle}</h2>
-          <p>{t.occasionsSubtitle}</p>
+        <div className="section-tabs" role="tablist" aria-label={t.occasionsTitle}>
+          {SECTIONS.filter((s) => s.items.length).map((s) => (
+            <button
+              key={s.id}
+              role="tab"
+              className="section-tab"
+              aria-selected={section.id === s.id}
+              onClick={() => {
+                setHomeSection(s.id);
+                setFilter("all");
+              }}
+            >
+              <strong>{s.name[lang]}</strong>
+              <span>{t.sectionHints[s.id]}</span>
+            </button>
+          ))}
         </div>
 
-        <div className="filter-bar">
-          <div className="chips" role="group" aria-label={t.occasionsTitle}>
-            {[{ id: "all", name: { ar: t.filterAll, en: t.filterAll } }, ...GROUPS].map((g) => (
-              <button key={g.id} className="chip" aria-pressed={filter === g.id} onClick={() => setFilter(g.id)}>
-                {g.name[lang]}
-              </button>
-            ))}
-          </div>
+        <div className="section-head">
+          <h2>{t.sectionTitles[section.id]}</h2>
+          <p>{t.sectionSubtitles[section.id]}</p>
         </div>
+
+        {section.id === "greetings" && (
+          <div className="filter-bar">
+            <div className="chips" role="group" aria-label={t.occasionsTitle}>
+              {[{ id: "all", name: { ar: t.filterAll, en: t.filterAll } }, ...GROUPS].map((g) => (
+                <button key={g.id} className="chip" aria-pressed={filter === g.id} onClick={() => setFilter(g.id)}>
+                  {g.name[lang]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="occ-grid">
           {visible.map((o) => (
-            <OccasionTile key={o.id} occasion={o} lang={lang} t={t} fan={fans[o.id]} group={groupName[o.group]} />
+            <OccasionTile
+              key={o.id}
+              occasion={o}
+              lang={lang}
+              t={t}
+              fan={fans[o.id]}
+              group={tileGroup(o)}
+              tall={section.id === "invitations"}
+            />
           ))}
         </div>
 

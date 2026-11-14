@@ -38,8 +38,8 @@ function drawLine(ctx, text, x, y, o) {
 
 function drawParagraph(ctx, text, x, y, o) {
   setDirection(ctx, text);
-  const { lines, size } = fitParagraph(ctx, text, { ...o, maxLines: 3 });
-  const lh = size * 1.6;
+  const { lines, size } = fitParagraph(ctx, text, { ...o, maxLines: o.maxLines || 3 });
+  const lh = size * (o.lineHeight || 1.6);
   // The first line stays where the design puts it; extra lines grow downwards, away from the title.
   const top = y;
   let maxWidth = 0;
@@ -119,7 +119,29 @@ export function renderCard(canvas, o) {
   });
 
   const lang = o.lang || "ar";
+  const announce = o.mode === "announcement";
   let pushDown = 0;
+
+  // Announcement on an image template: the sentence goes where the name would be.
+  if (t.kind === "image" && announce && o.phrase) {
+    const spec = layout.phrase || { y: layout.name.y - 0.08, size: 44, maxW: 0.74 };
+    const p = pos("phrase", spec);
+    boxes.push({
+      key: "phrase",
+      ...drawParagraph(ctx, o.phrase, p.x, p.y, {
+        font: o.font || "Tajawal",
+        size: (spec.size || 44) * (o.textScale || 1),
+        weight: 700,
+        color: o.nameColor || colors.name,
+        maxW: (spec.maxW || 0.74) * frame.w,
+        maxLines: 4,
+        lineHeight: 1.5,
+      }),
+    });
+    const box = boxes[boxes.length - 1];
+    const nameTop = frame.y + layout.name.y * frame.h - layout.name.size * 0.4;
+    pushDown = Math.max(0, box.y + box.h + frame.h * 0.01 - nameTop);
+  }
 
   if (t.kind === "generated" && o.occasion) {
     const title = o.occasion.title[lang];
@@ -152,20 +174,23 @@ export function renderCard(canvas, o) {
 
     if (o.phrase) {
       p = pos("phrase", layout.phrase);
+      // An announcement's sentence is the main message: bigger, bolder, up to 4 lines.
       boxes.push({
         key: "phrase",
         ...drawParagraph(ctx, o.phrase, p.x, p.y, {
-          font: fonts.text,
-          size: layout.phrase.size,
-          weight: 500,
-          color: colors.phrase,
-          maxW: layout.phrase.maxW * frame.w,
+          font: announce ? o.font || fonts.text : fonts.text,
+          size: layout.phrase.size * (announce ? 1.22 * (o.textScale || 1) : 1),
+          weight: announce ? 700 : 500,
+          color: announce ? o.nameColor || colors.name : colors.phrase,
+          maxW: layout.phrase.maxW * frame.w * (announce ? 1.08 : 1),
+          maxLines: announce ? 4 : 3,
+          lineHeight: announce ? 1.5 : 1.6,
         }),
       });
       // A long phrase pushes the name lines down so they never overlap.
       if (!off.phrase) {
         const phraseBottom = boxes[boxes.length - 1].y + boxes[boxes.length - 1].h;
-        const first = o.dedication ? layout.to : layout.name;
+        const first = o.dedication && !announce ? layout.to : layout.name;
         const nameTop = frame.y + first.y * frame.h - first.size * 0.75;
         pushDown = Math.max(0, phraseBottom + frame.h * 0.015 - nameTop);
       }
@@ -195,7 +220,24 @@ export function renderCard(canvas, o) {
     });
   };
 
-  if (o.dedication) {
+  if (announce) {
+    // Optional signature under the sentence ("أبو محمد"، "عائلة الغامدي").
+    if (name) {
+      const spec = layout.name;
+      const p = pos("name", spec);
+      p.y += pushDown;
+      boxes.push({
+        key: "name",
+        ...drawLine(ctx, name, p.x, p.y, {
+          font: nameFont,
+          size: spec.size * 0.62 * scale,
+          weight: 700,
+          color: t.kind === "generated" ? colors.sub : nameColor,
+          maxW: spec.maxW * frame.w,
+        }),
+      });
+    }
+  } else if (o.dedication) {
     const to = o.toName?.trim();
     personal("to", `${labels.to} ${to || ph.to || ""}`, layout.to, !to);
     personal("from", `${labels.from} ${name || ph.name || ""}`, layout.from, !name);
@@ -250,7 +292,8 @@ export function templateThumbnail(template, occasion, lang, image) {
     occasion,
     size: "square",
     lang,
-    phrase: occasion.phrases[lang][0],
+    phrase: occasion.phrases ? occasion.phrases[lang][0] : occasion.sample?.[lang],
+    mode: occasion.kind === "announcement" ? "announcement" : undefined,
     image,
     placeholders: { name: "" },
   });

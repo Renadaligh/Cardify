@@ -1516,3 +1516,89 @@ input[type="range"] {
     transition: none !important;
   }
 }
+
+/* ---------- Sections (greetings / announcements / invitations) ---------- */
+
+.section-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.section-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 14px 10px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.section-tab strong {
+  font-size: 1.15rem;
+  color: var(--text);
+}
+
+.section-tab span {
+  font-size: 0.85rem;
+}
+
+.section-tab:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+}
+
+.section-tab[aria-selected="true"] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--panel));
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+
+.chips-start {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
+/* invitations are tall pages */
+.occ-tile-tall .occ-fan {
+  aspect-ratio: 1;
+}
+
+.occ-tile-tall .occ-card {
+  width: 40%;
+  aspect-ratio: 9 / 16;
+}
+
+.template-grid-tall .template-option img {
+  aspect-ratio: 9 / 16;
+}
+
+.row-guest {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .section-tabs {
+    gap: 6px;
+  }
+
+  .section-tab {
+    padding: 10px 4px;
+    border-radius: 14px;
+  }
+
+  .section-tab strong {
+    font-size: 1rem;
+  }
+
+  .section-tab span {
+    font-size: 0.72rem;
+  }
+}

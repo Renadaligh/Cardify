@@ -12,9 +12,11 @@ import { AlertModal } from "../components/Modal";
 import { ColorField, Field, Segmented, StepTitle } from "../components/Controls";
 import LogoList from "../components/LogoList";
 import LimitedTextarea from "../components/CharCounter";
+import { ANNOUNCEMENT_FIELDS, announcementText } from "../data/announcements";
 
 const CUSTOM = "custom";
 const PHRASE_MAX = 90;
+const ANNOUNCE_MAX = 140;
 
 export default function Editor({ occasionId }) {
   const { t, lang, toast } = useApp();
@@ -32,6 +34,14 @@ export default function Editor({ occasionId }) {
   const [toName, setToName] = useState("");
   const [phraseChoice, setPhraseChoice] = useState(0);
   const [customPhrase, setCustomPhrase] = useState("");
+
+  // البشائر
+  const isAnnounce = occasion?.kind === "announcement";
+  const [voiceId, setVoiceId] = useState(occasion?.voices?.[0].id);
+  const [annFields, setAnnFields] = useState({});
+  const [annCustom, setAnnCustom] = useState(false);
+  const [annText, setAnnText] = useState("");
+  const voice = occasion?.voices?.find((v) => v.id === voiceId) || occasion?.voices?.[0];
 
   const [font, setFont] = useState("");
   const [nameColor, setNameColor] = useState(null);
@@ -93,8 +103,24 @@ export default function Editor({ occasionId }) {
     };
   }, [templates, occasion, cardLang, fontsReady, thumbsVersion]);
 
-  const phrases = occasion?.phrases[cardLang] || [];
-  const phrase = phraseChoice === CUSTOM ? customPhrase : phrases[phraseChoice] || phrases[0] || "";
+  const phrases = occasion?.phrases?.[cardLang] || [];
+  const fieldLabel = (key) => (voice?.labels?.[key] || ANNOUNCEMENT_FIELDS[key])[lang];
+  const builtText = isAnnounce && voice ? announcementText(voice, annFields, cardLang) : "";
+  // Preview while a required field is empty: show its label in its place.
+  const previewText =
+    isAnnounce && voice && !builtText
+      ? voice[cardLang === "en" ? "en" : "ar"]({
+          ...Object.fromEntries((voice.required || []).map((k) => [k, `(${fieldLabel(k)})`])),
+          ...Object.fromEntries(Object.entries(annFields).filter(([, v]) => v?.trim())),
+        })
+      : "";
+  const phrase = isAnnounce
+    ? annCustom
+      ? annText
+      : builtText || previewText
+    : phraseChoice === CUSTOM
+      ? customPhrase
+      : phrases[phraseChoice] || phrases[0] || "";
 
   const defaultNameColor = template?.kind === "image" ? template.color : template?.palette?.ink || "#000000";
   const defaultAccent = template?.kind === "generated" ? template.palette.accent : null;
@@ -104,8 +130,9 @@ export default function Editor({ occasionId }) {
     occasion,
     size,
     lang: cardLang,
+    mode: isAnnounce ? "announcement" : undefined,
     name,
-    dedication,
+    dedication: isAnnounce ? false : dedication,
     toName,
     phrase,
     font: font || null,
@@ -115,7 +142,7 @@ export default function Editor({ occasionId }) {
     logos,
     offsets,
     image,
-    placeholders: { name: t.namePlaceholder, to: t.toPlaceholder },
+    placeholders: isAnnounce ? {} : { name: t.namePlaceholder, to: t.toPlaceholder },
     ...overrides,
   });
 
@@ -137,6 +164,19 @@ export default function Editor({ occasionId }) {
   };
 
   const validate = () => {
+    if (isAnnounce) {
+      if (annCustom) {
+        if (annText.trim()) return true;
+        setAlert({ title: t.fieldRequiredTitle, text: t.fieldRequiredText.replace("{field}", t.annText) });
+        return false;
+      }
+      const missing = (voice.required || []).find((k) => !annFields[k]?.trim());
+      if (missing) {
+        setAlert({ title: t.fieldRequiredTitle, text: t.fieldRequiredText.replace("{field}", fieldLabel(missing)) });
+        return false;
+      }
+      return true;
+    }
     if (!name.trim()) {
       setAlert({ title: t.nameRequiredTitle, text: t.nameRequiredText });
       return false;
@@ -155,7 +195,8 @@ export default function Editor({ occasionId }) {
     return canvasToBlob(canvas);
   };
 
-  const filename = () => `cardify-${safeFilename(dedication ? toName : name)}.png`;
+  const filename = () =>
+    `cardify-${safeFilename(isAnnounce ? occasion.name[cardLang] : dedication ? toName : name)}.png`;
 
   const onDownload = async () => {
     if (!validate() || busy) return;
@@ -228,6 +269,70 @@ export default function Editor({ occasionId }) {
           <section className="panel control-block">
             <StepTitle n={2}>{t.stepText}</StepTitle>
 
+            {isAnnounce && (
+              <>
+                <Field label={t.annVoice}>
+                  <div className="chips chips-start" role="group" aria-label={t.annVoice}>
+                    {occasion.voices.map((v) => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        className="chip"
+                        aria-pressed={v.id === voice.id}
+                        onClick={() => setVoiceId(v.id)}
+                      >
+                        {v.label[lang]}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+
+                {!annCustom &&
+                  voice.fields.map((key) => (
+                    <Field key={key} label={fieldLabel(key)} htmlFor={`ann-${key}`}>
+                      <input
+                        id={`ann-${key}`}
+                        className="input"
+                        value={annFields[key] || ""}
+                        maxLength={40}
+                        placeholder={ANNOUNCEMENT_FIELDS[key].placeholder[lang]}
+                        onChange={(e) => setAnnFields((f) => ({ ...f, [key]: e.target.value }))}
+                      />
+                    </Field>
+                  ))}
+
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={annCustom}
+                    onChange={(e) => {
+                      setAnnCustom(e.target.checked);
+                      if (e.target.checked && !annText) setAnnText(builtText);
+                    }}
+                  />
+                  {t.annEditText}
+                </label>
+                {annCustom && (
+                  <Field label={t.annText} htmlFor="annText">
+                    <LimitedTextarea id="annText" value={annText} max={ANNOUNCE_MAX} onChange={setAnnText} />
+                  </Field>
+                )}
+
+                <Field label={t.annSignature} htmlFor="name">
+                  <input
+                    id="name"
+                    className="input"
+                    value={name}
+                    maxLength={40}
+                    placeholder={t.annSignaturePlaceholder}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </Field>
+              </>
+            )}
+
+            {!isAnnounce && (
+            <>
             <Field label={t.yourName} htmlFor="name">
               <input
                 id="name"
@@ -286,7 +391,10 @@ export default function Editor({ occasionId }) {
               </Field>
             )}
 
-            {template.kind === "generated" && (
+            </>
+            )}
+
+            {(template.kind === "generated" || isAnnounce) && (
               <Field label={t.cardLanguage}>
                 <Segmented
                   label={t.cardLanguage}
@@ -319,7 +427,7 @@ export default function Editor({ occasionId }) {
             </Field>
 
             <div className="row-2">
-              <Field label={t.nameColor} htmlFor="nameColor">
+              <Field label={isAnnounce ? t.annTextColor : t.nameColor} htmlFor="nameColor">
                 <ColorField
                   id="nameColor"
                   value={nameColor || defaultNameColor}
@@ -343,7 +451,7 @@ export default function Editor({ occasionId }) {
             </div>
             {template.kind === "generated" && <p className="hint" style={{ marginTop: -4 }}>{t.accentHint}</p>}
 
-            <Field label={`${t.textSize} (${Math.round(textScale * 100)}%)`} htmlFor="scale">
+            <Field label={`${isAnnounce ? t.annTextSize : t.textSize} (${Math.round(textScale * 100)}%)`} htmlFor="scale">
               <input
                 id="scale"
                 type="range"
@@ -395,9 +503,11 @@ export default function Editor({ occasionId }) {
             <button className="btn btn-secondary btn-wide" onClick={onShare} disabled={busy}>
               {t.share}
             </button>
-            <button className="btn btn-secondary btn-wide" onClick={() => setBatchOpen(true)}>
-              {t.batch}
-            </button>
+            {!isAnnounce && (
+              <button className="btn btn-secondary btn-wide" onClick={() => setBatchOpen(true)}>
+                {t.batch}
+              </button>
+            )}
           </section>
         </div>
       </div>

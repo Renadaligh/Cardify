@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useApp } from "../context";
 import { navigate } from "../lib/router";
-import { GROUPS, OCCASIONS } from "../data/occasions";
+import { SECTIONS } from "../data/occasions";
 
 /** Side menu (☰) to jump straight to any occasion or the certificates page. */
 export default function MenuDrawer({ open, onClose, current }) {
@@ -51,10 +51,10 @@ export default function MenuDrawer({ open, onClose, current }) {
           </button>
         </div>
 
-        {GROUPS.map((group) => (
-          <div key={group.id} className="drawer-group">
-            <p className="drawer-group-title">{group.name[lang]}</p>
-            {OCCASIONS.filter((o) => o.group === group.id).map((o) => (
+        {SECTIONS.filter((s) => s.items.length).map((section) => (
+          <div key={section.id} className="drawer-group">
+            <p className="drawer-group-title">{section.name[lang]}</p>
+            {section.items.map((o) => (
               <button
                 key={o.id}
                 className="drawer-link"

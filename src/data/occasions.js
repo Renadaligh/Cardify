@@ -1,6 +1,9 @@
 import { IMAGE_TEMPLATES } from "./imageTemplates";
 import { DESIGNS } from "../engine/designs";
 import { PALETTES } from "./palettes";
+import { ANNOUNCEMENTS } from "./announcements";
+import { INVITATIONS } from "./invitations";
+import { INVITE_IMAGE_TEMPLATES } from "./inviteTemplates";
 
 // To add an occasion: add an entry here. To add a generated template to an
 // occasion: add [designName, paletteName] to its `designs` list.
@@ -297,9 +300,22 @@ export const OCCASIONS = [
 
 export const DEFAULT_THEME = { accent: "#800ed2", blobs: ["#2563eb", "#9333ea", "#0891b2"] };
 
+// The four sections of the site (header, menu and home tabs).
+export const SECTIONS = [
+  { id: "greetings", name: { ar: "التهاني", en: "Greetings" }, items: OCCASIONS },
+  { id: "announcements", name: { ar: "البشائر", en: "Announcements" }, items: ANNOUNCEMENTS },
+  { id: "invitations", name: { ar: "الدعوات", en: "Invitations" }, items: INVITATIONS },
+  { id: "certificates", name: { ar: "الشهادات", en: "Certificates" }, items: [] },
+];
+
+const ALL = [...OCCASIONS, ...ANNOUNCEMENTS, ...INVITATIONS];
+
 export function getOccasion(id) {
-  return OCCASIONS.find((o) => o.id === id);
+  return ALL.find((o) => o.id === id);
 }
+
+/** "greeting" | "announcement" | "invitation" */
+export const kindOf = (occasion) => occasion?.kind || "greeting";
 
 /** All templates (image + generated) available for an occasion. */
 export function templatesFor(occasion) {
@@ -310,8 +326,9 @@ export function templatesFor(occasion) {
     palette: PALETTES[palette],
     name: DESIGNS[design].name,
   }));
-  const images = occasion.images
-    ? IMAGE_TEMPLATES.filter((t) => t.occasions.includes(occasion.id)).map((t) => ({ ...t, kind: "image" }))
-    : [];
+  const images =
+    kindOf(occasion) === "invitation"
+      ? INVITE_IMAGE_TEMPLATES.filter((t) => t.invitations.includes(occasion.id)).map((t) => ({ ...t, kind: "image" }))
+      : IMAGE_TEMPLATES.filter((t) => t.occasions?.includes(occasion.id)).map((t) => ({ ...t, kind: "image" }));
   return [...images, ...generated];
 }
