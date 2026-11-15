@@ -142,6 +142,15 @@ function route(method, path, body, query) {
     certificates.forEach((c) => s.certificates.push({ ...c, batch_id: id, user_id: u.id, issued_at: at }));
     return { batchId: id, issuedAt: at, issuer, certificates, credits: u.credits };
   }
+  if (key === "POST /api/cards/charge") {
+    const u = need();
+    const n = parseInt(body.count, 10) || 0;
+    if (n < 1) fail(400, "bad_count");
+    if (u.credits < n) fail(402, "not_enough_credits");
+    u.credits -= n;
+    s.cardsCharged = (s.cardsCharged || 0) + n;
+    return { credits: u.credits };
+  }
   if (key === "GET /api/certificates") {
     const u = need();
     return { batches: s.batches.filter((b) => b.user_id === u.id).map(({ design, ...b }) => b) };
@@ -198,6 +207,7 @@ function route(method, path, body, query) {
         certificates: s.certificates.length,
         certificates30: s.certificates.filter((c) => c.issued_at > day30).length,
         unusedCredits: s.users.reduce((a, u) => a + u.credits, 0),
+        cards30: s.cardsCharged || 0,
         daily: Object.values(byDay).sort((a, b) => a.day - b.day),
         payments: true,
         media: true,

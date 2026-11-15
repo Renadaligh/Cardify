@@ -42,19 +42,18 @@ export default function MenuDrawer({ open, onClose, current }) {
           <button className="drawer-link" aria-current={current === "home"} onClick={() => go("/")}>
             {t.home}
           </button>
-          <button
-            className="drawer-link"
-            aria-current={current === "certificates"}
-            onClick={() => go("/certificates")}
-          >
-            {t.certificatesCta}
+          <button className="drawer-link" aria-current={current === "certificates"} onClick={() => go("/certificates")}>
+            {t.navSchools}
+          </button>
+          <button className="drawer-link" aria-current={current === "business"} onClick={() => go("/business")}>
+            {t.navBusiness}
           </button>
           <button className="drawer-link" aria-current={current === "account"} onClick={() => go("/account")}>
             {t.accountTitle}
           </button>
         </div>
 
-        {SECTIONS.filter((s) => s.items.length).map((section) => (
+        {SECTIONS.filter((s) => s.items.length && !s.route).map((section) => (
           <div key={section.id} className="drawer-group">
             <p className="drawer-group-title">{section.name[lang]}</p>
             {section.items.map((o) => (

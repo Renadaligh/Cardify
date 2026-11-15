@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppContext } from "./context";
 import { navigate, useRoute } from "./lib/router";
 import { translations } from "./data/translations";
-import { DEFAULT_THEME, getOccasion, kindOf } from "./data/occasions";
+import { DEFAULT_THEME, SECTIONS, getOccasion, isPaidOccasion, kindOf } from "./data/occasions";
 import Background from "./components/Background";
 import TopBar from "./components/TopBar";
 import Footer from "./components/Footer";
@@ -10,6 +10,7 @@ import Home from "./pages/Home";
 import Editor from "./pages/Editor";
 import InviteEditor from "./pages/InviteEditor";
 import Certificates from "./pages/Certificates";
+import Business from "./pages/Business";
 import Account from "./pages/Account";
 import Admin from "./pages/Admin";
 import Verify from "./pages/Verify";
@@ -46,7 +47,8 @@ export default function App() {
   const [homeSection, setHomeSection] = useState("greetings");
   const [scrollRequest, setScrollRequest] = useState(0);
   const showSection = useCallback((section) => {
-    if (section === "certificates") return navigate("/certificates");
+    const target = SECTIONS.find((s) => s.id === section);
+    if (target?.route) return navigate(target.route);
     setHomeSection(section);
     setOccasionFilter("all");
     if (window.location.hash.replace(/^#/, "") && window.location.hash !== "#/") navigate("/");
@@ -99,7 +101,7 @@ export default function App() {
   // Each occasion tints the site with its own colours.
   const theme = useMemo(() => {
     if (route.page === "editor") return getOccasion(route.occasionId)?.theme || DEFAULT_THEME;
-    if (["certificates", "account", "admin", "verify"].includes(route.page)) return CERT_THEME;
+    if (["certificates", "account", "admin", "verify", "business"].includes(route.page)) return CERT_THEME;
     // On the home page the background light follows the sky scene above it.
     return heroTint ? { ...DEFAULT_THEME, blobs: heroTint } : DEFAULT_THEME;
   }, [route.page, route.occasionId, heroTint]);
@@ -138,10 +140,16 @@ export default function App() {
   // Header highlight: the section of the page being shown.
   const currentSection =
     route.page === "certificates"
-      ? "certificates"
-      : occasion
-        ? { greeting: "greetings", announcement: "announcements", invitation: "invitations" }[kindOf(occasion)]
-        : null;
+      ? route.audience === "business"
+        ? "business"
+        : "schools"
+      : route.page === "business"
+        ? "business"
+        : occasion
+          ? isPaidOccasion(occasion)
+            ? "business"
+            : { greeting: "greetings", announcement: "announcements", invitation: "invitations" }[kindOf(occasion)]
+          : null;
 
   return (
     <AppContext.Provider value={context}>
@@ -149,7 +157,7 @@ export default function App() {
         <Background colors={theme.blobs} />
         <div className="app-content">
           <TopBar current={route.page === "editor" ? route.occasionId : route.page} section={currentSection} />
-          {demo && ["certificates", "account", "admin"].includes(route.page) && (
+          {demo && ["certificates", "account", "admin", "business"].includes(route.page) && (
             <div className="container demo-banner" role="note">
               {t.demoBanner}
             </div>
@@ -161,7 +169,8 @@ export default function App() {
             ) : (
               <Editor key={route.occasionId} occasionId={route.occasionId} />
             ))}
-          {route.page === "certificates" && <Certificates />}
+          {route.page === "certificates" && <Certificates key={route.audience} audience={route.audience} />}
+          {route.page === "business" && <Business />}
           {route.page === "account" && <Account query={route.query} />}
           {route.page === "admin" && <Admin />}
           {route.page === "verify" && <Verify serial={route.serial} />}

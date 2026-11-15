@@ -76,7 +76,7 @@ function Overview() {
   const tiles = [
     [t.statRevenue30, formatSar(s.revenue30, lang), `${t.statTotal}: ${formatSar(s.revenue, lang)}`],
     [t.statOrders30, s.orders30, `${t.statTotal}: ${s.orders}`],
-    [t.statCerts30, s.certificates30, `${t.statTotal}: ${s.certificates}`],
+    [t.statCerts30, s.certificates30, `${t.statTotal}: ${s.certificates} · ${t.statCards30}: ${s.cards30 ?? 0}`],
     [t.statUsers, s.users, `${t.statUnused}: ${s.unusedCredits}`],
   ];
 

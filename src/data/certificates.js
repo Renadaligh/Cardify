@@ -56,3 +56,62 @@ export const CERT_STYLES = [
 ];
 
 export const CERT_COLORS = ["#a8792b", "#1e3a8a", "#0b7a3e", "#8b1e3f", "#6d28d9", "#0f766e"];
+
+// ---------- Companies and organisations ----------
+
+export const BUSINESS_TYPES = [
+  { id: "appreciation", ar: "شهادة شكر وتقدير", en: "Certificate of Appreciation" },
+  { id: "employee", ar: "شهادة الموظف المثالي", en: "Employee of the Month" },
+  { id: "training", ar: "شهادة إتمام دورة تدريبية", en: "Certificate of Completion" },
+  { id: "attendance", ar: "شهادة حضور", en: "Certificate of Attendance" },
+  { id: "participation", ar: "شهادة مشاركة", en: "Certificate of Participation" },
+  { id: "achievement", ar: "شهادة تميّز", en: "Certificate of Excellence" },
+  { id: "custom", ar: "عنوان من كتابتي", en: "Custom title" },
+];
+
+export const BUSINESS_RECIPIENTS = [
+  { id: "employee_m", label: { ar: "موظف", en: "Employee (m)" }, gender: "m", intro: { ar: "يسرّنا تقديم هذه الشهادة للموظف" } },
+  { id: "employee_f", label: { ar: "موظفة", en: "Employee (f)" }, gender: "f", intro: { ar: "يسرّنا تقديم هذه الشهادة للموظفة" } },
+  { id: "trainee_m", label: { ar: "متدرب", en: "Trainee (m)" }, gender: "m", intro: { ar: "تشهد الجهة بأن المتدرب" } },
+  { id: "trainee_f", label: { ar: "متدربة", en: "Trainee (f)" }, gender: "f", intro: { ar: "تشهد الجهة بأن المتدربة" } },
+  { id: "general", label: { ar: "عام", en: "General" }, gender: "m", intro: { ar: "يسرّنا تقديم هذه الشهادة إلى" } },
+];
+
+export const BUSINESS_REASONS = [
+  {
+    m: "تقديرًا لجهوده المتميزة وإخلاصه في العمل، متمنّين له مزيدًا من النجاح",
+    f: "تقديرًا لجهودها المتميزة وإخلاصها في العمل، متمنّين لها مزيدًا من النجاح",
+    en: "In appreciation of your outstanding effort and dedication. We wish you continued success.",
+  },
+  {
+    m: "لاختياره الموظف المثالي، تقديرًا لعطائه وتميّز أدائه",
+    f: "لاختيارها الموظفة المثالية، تقديرًا لعطائها وتميّز أدائها",
+    en: "For being selected Employee of the Month in recognition of exceptional performance.",
+  },
+  {
+    m: "قد أتمّ البرنامج التدريبي بنجاح، متمنّين له التوفيق",
+    f: "قد أتمّت البرنامج التدريبي بنجاح، متمنّين لها التوفيق",
+    en: "Has successfully completed the training programme.",
+  },
+  {
+    m: "وذلك لحضوره الفعالية ومشاركته فيها",
+    f: "وذلك لحضورها الفعالية ومشاركتها فيها",
+    en: "For attending and taking part in the event.",
+  },
+  {
+    m: "وذلك لمشاركته الفاعلة وإسهامه في إنجاح الفعالية",
+    f: "وذلك لمشاركتها الفاعلة وإسهامها في إنجاح الفعالية",
+    en: "For active participation and contribution to the success of the event.",
+  },
+  {
+    m: "تقديرًا لسنوات العطاء والخدمة المخلصة",
+    f: "تقديرًا لسنوات العطاء والخدمة المخلصة",
+    en: "In appreciation of years of dedicated service.",
+  },
+];
+
+/** Texts per audience: schools (default) or companies. */
+export const CERT_AUDIENCES = {
+  education: { types: CERT_TYPES, recipients: RECIPIENTS, reasons: REASONS, defaultType: "appreciation", defaultRecipient: "student_m" },
+  business: { types: BUSINESS_TYPES, recipients: BUSINESS_RECIPIENTS, reasons: BUSINESS_REASONS, defaultType: "appreciation", defaultRecipient: "employee_m" },
+};

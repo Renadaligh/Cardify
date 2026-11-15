@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "../context";
 import { navigate } from "../lib/router";
-import { GROUPS, OCCASIONS, SECTIONS, templatesFor } from "../data/occasions";
+import { GROUPS, OCCASIONS, PAID_GROUPS, SECTIONS, templatesFor } from "../data/occasions";
 import { ANNOUNCEMENTS } from "../data/announcements";
 import { INVITATIONS, inviteSample } from "../data/invitations";
 import { inviteThumbnail, clearInviteThumbnails } from "../engine/inviteRenderer";
@@ -16,7 +16,7 @@ import { renderExamples } from "../data/examples";
 const FAN_SIZE = 3;
 
 /** One occasion: a fan of its real templates that spreads on hover / focus. */
-function OccasionTile({ occasion, lang, t, fan, group, tall }) {
+export function OccasionTile({ occasion, lang, t, fan, group, tall }) {
   const count = templatesFor(occasion).length;
   return (
     <button
@@ -88,7 +88,7 @@ export default function Home() {
   const groupName = Object.fromEntries(GROUPS.map((g) => [g.id, g.name[lang]]));
   const section = SECTIONS.find((s) => s.id === homeSection) || SECTIONS[0];
   const visible =
-    section.id === "greetings" ? OCCASIONS.filter((o) => filter === "all" || o.group === filter) : section.items;
+    section.id === "greetings" ? section.items.filter((o) => filter === "all" || o.group === filter) : section.items;
   const tileGroup = (o) =>
     section.id === "greetings"
       ? groupName[o.group]
@@ -209,7 +209,7 @@ export default function Home() {
         </div>
 
         <div className="section-tabs" role="tablist" aria-label={t.occasionsTitle}>
-          {SECTIONS.filter((s) => s.items.length).map((s) => (
+          {SECTIONS.filter((s) => s.items.length && !s.route).map((s) => (
             <button
               key={s.id}
               role="tab"
@@ -234,7 +234,7 @@ export default function Home() {
         {section.id === "greetings" && (
           <div className="filter-bar">
             <div className="chips" role="group" aria-label={t.occasionsTitle}>
-              {[{ id: "all", name: { ar: t.filterAll, en: t.filterAll } }, ...GROUPS].map((g) => (
+              {[{ id: "all", name: { ar: t.filterAll, en: t.filterAll } }, ...GROUPS.filter((g) => !PAID_GROUPS.includes(g.id))].map((g) => (
                 <button key={g.id} className="chip" aria-pressed={filter === g.id} onClick={() => setFilter(g.id)}>
                   {g.name[lang]}
                 </button>
@@ -268,7 +268,7 @@ export default function Home() {
               {cert && <img src={cert} alt="" />}
             </span>
           </button>
-          <button className="band" style={{ "--occ": thanks.theme.accent }} onClick={() => navigate("/o/thanks")}>
+          <button className="band" style={{ "--occ": thanks.theme.accent }} onClick={() => navigate("/business")}>
             <span className="band-text">
               <strong>{t.businessTitle}</strong>
               <span>{t.businessText}</span>

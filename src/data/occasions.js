@@ -246,7 +246,7 @@ export const OCCASIONS = [
   },
   {
     id: "promotion",
-    group: "personal",
+    group: "work",
     name: { ar: "الترقية", en: "Promotion" },
     title: { ar: "مبروك الترقية", en: "Congratulations" },
     phrases: {
@@ -263,7 +263,7 @@ export const OCCASIONS = [
   },
   {
     id: "retirement",
-    group: "personal",
+    group: "work",
     name: { ar: "التقاعد", en: "Retirement" },
     title: { ar: "شكرًا لسنوات العطاء", en: "Happy Retirement" },
     phrases: {
@@ -300,12 +300,19 @@ export const OCCASIONS = [
 
 export const DEFAULT_THEME = { accent: "#800ed2", blobs: ["#2563eb", "#9333ea", "#0891b2"] };
 
-// The four sections of the site (header, menu and home tabs).
+// Company occasions: their cards are paid (one credit per card) and live under "للشركات".
+export const PAID_GROUPS = ["work"];
+export const isPaidOccasion = (o) => PAID_GROUPS.includes(o?.group) && (o?.kind || "greeting") === "greeting";
+export const WORK_OCCASIONS = OCCASIONS.filter(isPaidOccasion);
+
+// The sections of the site (header, menu and home tabs). A section with `route`
+// is its own page; the others are tabs of the home list.
 export const SECTIONS = [
-  { id: "greetings", name: { ar: "التهاني", en: "Greetings" }, items: OCCASIONS },
+  { id: "greetings", name: { ar: "التهاني", en: "Greetings" }, items: OCCASIONS.filter((o) => !isPaidOccasion(o)) },
   { id: "announcements", name: { ar: "البشائر", en: "Announcements" }, items: ANNOUNCEMENTS },
   { id: "invitations", name: { ar: "الدعوات", en: "Invitations" }, items: INVITATIONS },
-  { id: "certificates", name: { ar: "الشهادات", en: "Certificates" }, items: [] },
+  { id: "schools", name: { ar: "للمدارس", en: "Schools" }, route: "/certificates", items: [] },
+  { id: "business", name: { ar: "للشركات", en: "Business" }, route: "/business", items: WORK_OCCASIONS },
 ];
 
 const ALL = [...OCCASIONS, ...ANNOUNCEMENTS, ...INVITATIONS];

@@ -3,7 +3,7 @@ import { useApp } from "../context";
 import { navigate } from "../lib/router";
 import { ensureFonts } from "../engine/fonts";
 import { renderCertificate, CERT_SIZE } from "../engine/certRenderer";
-import { CERT_COLORS, CERT_STYLES, CERT_TYPES, EN_INTRO, REASONS, RECIPIENTS } from "../data/certificates";
+import { CERT_AUDIENCES, CERT_COLORS, CERT_STYLES, EN_INTRO } from "../data/certificates";
 import { CERT_IMAGE_TEMPLATES } from "../data/certificateTemplates";
 import { canvasToBlob, blobToBytes, downloadBlob, loadImage, readImageFile, safeFilename, shareBlob } from "../lib/files";
 import { createImagePdf } from "../lib/pdf";
@@ -23,24 +23,30 @@ import { ColorField, Field, FileButton, Segmented } from "../components/Controls
 const CUSTOM = "custom";
 const REASON_MAX = 130;
 
-export default function Certificates() {
+export default function Certificates({ audience = "education" }) {
   const { t, lang, toast, user, setUser, openAuth } = useApp();
   const [fontsReady, setFontsReady] = useState(false);
 
   // Designs: your image templates first, then the built-in styles.
   const designs = [
     ...CERT_IMAGE_TEMPLATES.map((d) => ({ ...d, kind: "image" })),
-    ...CERT_STYLES.map((d) => ({ ...d, kind: "style" })),
+    // the playful kids' design is for schools only
+    ...CERT_STYLES.filter((d) => audience !== "business" || d.id !== "kids").map((d) => ({ ...d, kind: "style" })),
   ];
-  const [designId, setDesignId] = useState(designs[0].id);
+  const [designId, setDesignId] = useState(audience === "business" ? "modern" : designs[0].id);
   const design = designs.find((d) => d.id === designId) || designs[0];
   const [images, setImages] = useState({});
   const [thumbs, setThumbs] = useState({});
   const [accent, setAccent] = useState(CERT_COLORS[0]);
   const [certLang, setCertLang] = useState(lang);
+  // Schools (#/certificates) or companies (#/business/certificates): the titles, recipients and reasons on offer.
+  const A = CERT_AUDIENCES[audience];
+  const CERT_TYPES = A.types;
+  const RECIPIENTS = A.recipients;
+  const REASONS = A.reasons;
   const [type, setType] = useState("appreciation");
   const [customTitle, setCustomTitle] = useState("");
-  const [recipient, setRecipient] = useState("student_m");
+  const [recipient, setRecipient] = useState(A.defaultRecipient);
   const [name, setName] = useState("");
   const [reasonChoice, setReasonChoice] = useState(0);
   const [customReason, setCustomReason] = useState("");
@@ -108,10 +114,12 @@ export default function Certificates() {
   }, [lang]);
 
   // Until the user edits it, the header follows the certificate language.
-  const header = headerLines ?? (certLang === "ar" ? "المملكة العربية السعودية\nوزارة التعليم" : "");
+  const header =
+    headerLines ??
+    (audience === "business" ? user?.org || "" : certLang === "ar" ? "المملكة العربية السعودية\nوزارة التعليم" : "");
 
-  const recipientInfo = RECIPIENTS.find((r) => r.id === recipient);
-  const typeInfo = CERT_TYPES.find((c) => c.id === type);
+  const recipientInfo = RECIPIENTS.find((r) => r.id === recipient) || RECIPIENTS[0];
+  const typeInfo = CERT_TYPES.find((c) => c.id === type) || CERT_TYPES[0];
   const title = type === CUSTOM ? customTitle : typeInfo[certLang];
   const intro = certLang === "ar" ? recipientInfo.intro.ar : EN_INTRO;
   const reasonText = (choice) => {
@@ -268,12 +276,12 @@ export default function Certificates() {
     <main className="container section">
       <div className="editor-head">
         <div>
-          <button className="back-link" onClick={() => navigate("/")}>
-            {lang === "ar" ? "→" : "←"} {t.home}
+          <button className="back-link" onClick={() => navigate(audience === "business" ? "/business" : "/")}>
+            {lang === "ar" ? "→" : "←"} {audience === "business" ? t.businessBack : t.home}
           </button>
-          <h1>{t.certTitle}</h1>
+          <h1>{audience === "business" ? t.certTitleBusiness : t.certTitle}</h1>
           <p className="hint" style={{ fontSize: "1rem" }}>
-            {t.certSubtitle}
+            {audience === "business" ? t.certSubtitleBusiness : t.certSubtitle}
           </p>
         </div>
         <div className="credit-pill">
@@ -460,12 +468,12 @@ export default function Certificates() {
               />
             </Field>
 
-            <Field label={t.schoolLogo}>
+            <Field label={audience === "business" ? t.companyLogo : t.schoolLogo}>
               <LogoList
                 logos={logos}
                 onChange={setLogos}
                 describe={(i) => (i === 0 ? t.logoBesideHeader : t.logoOpposite)}
-                hint={t.certLogosHint}
+                hint={audience === "business" ? t.companyLogosHint : t.certLogosHint}
               />
             </Field>
 

@@ -1607,7 +1607,7 @@ input[type="range"] {
    The text stays centred in the first screen. */
 @media (max-width: 640px) {
   .hero-sky {
-    height: max(640px, 112svh);
+    height: max(600px, 100svh);
     margin-bottom: 44px;
   }
 

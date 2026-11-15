@@ -374,6 +374,22 @@ async function issueCertificates(request, env) {
   });
 }
 
+// Paid greeting cards (company occasions): just takes the credits, nothing is stored.
+async function chargeCards(request, env) {
+  const user = await requireUser(request, env);
+  const body = await readJson(request);
+  const count = parseInt(body.count, 10);
+  if (!(count >= 1 && count <= MAX_RECIPIENTS)) fail(400, "bad_count");
+  const take = await env.DB.prepare("UPDATE users SET credits = credits - ? WHERE id = ? AND credits >= ?")
+    .bind(count, user.id, count)
+    .run();
+  if (take.meta.changes !== 1) fail(402, "not_enough_credits");
+  await env.DB.prepare("INSERT INTO credit_log (user_id, delta, reason, ref, created_at) VALUES (?, ?, 'card', ?, ?)")
+    .bind(user.id, -count, cleanText(body.occasion, 60), now())
+    .run();
+  return json({ credits: user.credits - count });
+}
+
 async function myBatches(request, env) {
   const user = await requireUser(request, env);
   const { results } = await env.DB.prepare(
@@ -469,13 +485,14 @@ async function adminStats(request, env) {
       .bind(...b)
       .first();
   const day30 = now() - 30 * 86400000;
-  const [users, paid, paid30, certs, certs30, credits] = await Promise.all([
+  const [users, paid, paid30, certs, certs30, credits, cards30] = await Promise.all([
     one("SELECT COUNT(*) AS n FROM users"),
     one("SELECT COUNT(*) AS n, COALESCE(SUM(amount), 0) AS total FROM orders WHERE status = 'paid'"),
     one("SELECT COUNT(*) AS n, COALESCE(SUM(amount), 0) AS total FROM orders WHERE status = 'paid' AND paid_at > ?", day30),
     one("SELECT COUNT(*) AS n FROM certificates"),
     one("SELECT COUNT(*) AS n FROM certificates WHERE issued_at > ?", day30),
     one("SELECT COALESCE(SUM(credits), 0) AS n FROM users"),
+    one("SELECT COALESCE(-SUM(delta), 0) AS n FROM credit_log WHERE reason = 'card' AND created_at > ?", day30),
   ]);
   const { results: daily } = await env.DB.prepare(
     "SELECT CAST((paid_at / 86400000) AS INTEGER) AS day, SUM(amount) AS total, COUNT(*) AS n FROM orders WHERE status = 'paid' AND paid_at > ? GROUP BY day ORDER BY day"
@@ -491,6 +508,7 @@ async function adminStats(request, env) {
     certificates: certs.n,
     certificates30: certs30.n,
     unusedCredits: credits.n,
+    cards30: cards30.n,
     daily,
     payments: paymentsEnabled(env),
     media: Boolean(env.MEDIA),
@@ -622,6 +640,7 @@ export async function handle(request, env) {
 
     if (path === "/api/certificates/issue" && m === "POST") return await issueCertificates(request, env);
     if (path === "/api/certificates" && m === "GET") return await myBatches(request, env);
+    if (path === "/api/cards/charge" && m === "POST") return await chargeCards(request, env);
     if ((p = path.match(/^\/api\/certificates\/batch\/([\w-]+)$/)) && m === "GET") return await getBatch(request, env, p[1]);
     if ((p = path.match(/^\/api\/verify\/([\w-]+)$/)) && m === "GET") return await verify(env, p[1]);
 

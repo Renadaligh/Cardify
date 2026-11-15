@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useApp } from "../context";
 import { navigate } from "../lib/router";
-import { getOccasion, templatesFor } from "../data/occasions";
+import { getOccasion, isPaidOccasion, templatesFor } from "../data/occasions";
 import { FONTS, ensureFonts } from "../engine/fonts";
 import { renderCard, templateThumbnail, clearThumbnailCache } from "../engine/cardRenderer";
 import { loadImage, canvasToBlob, downloadBlob, shareBlob, safeFilename, blobToBytes } from "../lib/files";
 import { createZip } from "../lib/zip";
 import CardStage from "../components/CardStage";
 import BatchDialog from "../components/BatchDialog";
-import { AlertModal } from "../components/Modal";
+import Modal, { AlertModal } from "../components/Modal";
+import PackageCards from "../components/PackageCards";
+import { api } from "../lib/api";
 import EditorSteps, { Step, MobileActionBar } from "../components/EditorSteps";
 import { ColorField, Field, Segmented } from "../components/Controls";
 import LogoList from "../components/LogoList";
@@ -22,8 +24,14 @@ const PHRASE_MAX = 90;
 const ANNOUNCE_MAX = 140;
 
 export default function Editor({ occasionId }) {
-  const { t, lang, toast } = useApp();
+  const { t, lang, toast, user, setUser, openAuth } = useApp();
   const occasion = getOccasion(occasionId);
+  // Company occasions are paid: one credit per card, then the card is locked.
+  const paid = isPaidOccasion(occasion);
+  const [unlocked, setUnlocked] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [needCredits, setNeedCredits] = useState(null);
+  const locked = paid && unlocked;
   const templates = useMemo(() => (occasion ? templatesFor(occasion) : []), [occasion]);
 
   const [templateId, setTemplateId] = useState(templates[0]?.id);
@@ -148,6 +156,7 @@ export default function Editor({ occasionId }) {
     offsets,
     image,
     placeholders: isAnnounce ? {} : { name: t.namePlaceholder, to: t.toPlaceholder },
+    watermark: paid && !unlocked ? t.certWatermark : null,
     ...overrides,
   });
 
@@ -226,6 +235,44 @@ export default function Editor({ occasionId }) {
     }
   };
 
+  // ---- paid cards ----
+  const ensureUser = async () => user || (await openAuth("signup", t.cardLoginReason));
+
+  const onIssueClick = async () => {
+    if (!validate()) return;
+    const u = await ensureUser();
+    if (!u) return;
+    if (u.credits < 1) return setNeedCredits(1);
+    setConfirmOpen(true);
+  };
+
+  const charge = async (count) => {
+    const d = await api("POST", "/api/cards/charge", { count, occasion: occasion.id });
+    setUser((u) => (u ? { ...u, credits: d.credits } : u));
+  };
+
+  const confirmIssue = async () => {
+    setBusy(true);
+    try {
+      await charge(1);
+      setUnlocked(true);
+      setConfirmOpen(false);
+      toast(t.cardIssuedToast);
+    } catch (e) {
+      setConfirmOpen(false);
+      if (e.code === "not_enough_credits") setNeedCredits(1);
+      else toast(t.paymentError);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startNewCard = () => {
+    setUnlocked(false);
+    setName("");
+    setToName("");
+  };
+
   if (!occasion) {
     navigate("/");
     return null;
@@ -235,25 +282,50 @@ export default function Editor({ occasionId }) {
     <main className="container section">
       <div className="editor-head">
         <div>
-          <button className="back-link" onClick={() => navigate("/")}>
-            {lang === "ar" ? "→" : "←"} {t.back}
+          <button className="back-link" onClick={() => navigate(paid ? "/business" : "/")}>
+            {lang === "ar" ? "→" : "←"} {paid ? t.businessBack : t.back}
           </button>
           <h1>{occasion.name[lang]}</h1>
         </div>
+        {paid && (
+          <div className="credit-pill">
+            {user ? (
+              <span>
+                {t.yourBalance}: <strong>{user.credits}</strong> · {t.cardCost}
+              </span>
+            ) : (
+              <>
+                <span>{t.freeCertsOffer}</span>
+                <button className="btn btn-small btn-primary" onClick={() => openAuth("signup")}>
+                  {t.authSignup}
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
+      {locked && (
+        <div className="issued-banner" role="status">
+          <div>
+            <strong>{t.cardIssuedTitle}</strong>
+            <span>{t.cardLockedNote}</span>
+          </div>
+        </div>
+      )}
 
       <div className="editor">
         <div className="panel stage-wrap">
           <CardStage
             draw={draw}
             offsets={offsets}
-            onMove={onMove}
+            onMove={locked ? undefined : onMove}
             hint={t.dragHint}
             label={occasion.title[cardLang]}
           />
         </div>
 
         <div className="controls">
+          <fieldset className="lock-fieldset" disabled={locked}>
           <EditorSteps>
           <Step label={t.stepTemplate}>
             <div className="template-grid">
@@ -504,24 +576,82 @@ export default function Editor({ occasionId }) {
             />
           </Step>
           </EditorSteps>
+          </fieldset>
 
           <section className="panel control-block actions">
-            <button className="btn btn-primary" onClick={onDownload} disabled={busy}>
-              {t.download}
-            </button>
-            <button className="btn btn-secondary btn-wide" onClick={onShare} disabled={busy}>
-              {t.share}
-            </button>
-            {!isAnnounce && (
-              <button className="btn btn-secondary btn-wide" onClick={() => setBatchOpen(true)}>
-                {t.batch}
-              </button>
+            {paid && !unlocked ? (
+              <>
+                <button className="btn btn-primary" onClick={onIssueClick} disabled={busy}>
+                  {t.cardIssue}
+                </button>
+                <button
+                  className="btn btn-secondary btn-wide"
+                  onClick={async () => (await ensureUser()) && setBatchOpen(true)}
+                >
+                  {t.cardBatchPaid}
+                </button>
+                <p className="hint" style={{ gridColumn: "1 / -1", margin: 0 }}>
+                  {t.cardPreviewNote}
+                </p>
+              </>
+            ) : (
+              <>
+                <button className="btn btn-primary" onClick={onDownload} disabled={busy}>
+                  {t.download}
+                </button>
+                <button className="btn btn-secondary btn-wide" onClick={onShare} disabled={busy}>
+                  {t.share}
+                </button>
+                {locked ? (
+                  <button className="btn btn-secondary btn-wide" onClick={startNewCard}>
+                    {t.cardNew}
+                  </button>
+                ) : (
+                  !isAnnounce && (
+                    <button className="btn btn-secondary btn-wide" onClick={() => setBatchOpen(true)}>
+                      {t.batch}
+                    </button>
+                  )
+                )}
+              </>
             )}
           </section>
         </div>
       </div>
 
-      <MobileActionBar label={t.download} onClick={onDownload} disabled={busy} />
+      <MobileActionBar
+        label={paid && !unlocked ? t.cardIssue : t.download}
+        onClick={paid && !unlocked ? onIssueClick : onDownload}
+        disabled={busy}
+      />
+
+      {confirmOpen && (
+        <Modal
+          title={t.cardConfirmTitle}
+          onClose={busy ? undefined : () => setConfirmOpen(false)}
+          center
+          actions={
+            <>
+              <button className="btn btn-primary" onClick={confirmIssue} disabled={busy} autoFocus>
+                {busy ? t.issuing : t.certConfirmButton}
+              </button>
+              <button className="btn btn-ghost" onClick={() => setConfirmOpen(false)} disabled={busy}>
+                {t.cancel}
+              </button>
+            </>
+          }
+        >
+          <p>{t.cardConfirmText}</p>
+          <p className="hint">{t.certConfirmCost(user?.credits ?? 0)}</p>
+        </Modal>
+      )}
+
+      {needCredits !== null && (
+        <Modal title={t.needCreditsTitle} onClose={() => setNeedCredits(null)}>
+          <p>{t.needCreditsText(needCredits, user?.credits ?? 0)}</p>
+          <PackageCards compact />
+        </Modal>
+      )}
 
       {alert && <AlertModal title={alert.title} text={alert.text} buttonLabel={t.ok} onClose={() => setAlert(null)} />}
 
@@ -531,13 +661,28 @@ export default function Editor({ occasionId }) {
           onClose={() => setBatchOpen(false)}
           validate={() => (dedication && !name.trim() ? t.batchFromRequired : null)}
           outputName="cardify-cards.zip"
+          actionLabel={paid ? (n) => (n ? t.cardIssueN(n) : t.generate) : undefined}
           build={async (names, onProgress) => {
+            if (paid) {
+              const have = user?.credits ?? 0;
+              const fail = (msg) => {
+                const err = new Error("credits");
+                err.userMessage = msg;
+                throw err;
+              };
+              if (have < names.length) fail(t.needCreditsCards(names.length, have));
+              try {
+                await charge(names.length);
+              } catch (e) {
+                fail(e.code === "not_enough_credits" ? t.needCreditsCards(names.length, have) : t.paymentError);
+              }
+            }
             await ensureFonts();
             const files = [];
             const used = new Set();
             for (let i = 0; i < names.length; i++) {
               onProgress(i + 1);
-              const overrides = dedication ? { toName: names[i] } : { name: names[i] };
+              const overrides = { ...(dedication ? { toName: names[i] } : { name: names[i] }), watermark: null };
               const blob = await exportBlob(overrides);
               let file = `${safeFilename(names[i], `card-${i + 1}`)}.png`;
               if (used.has(file)) file = `${i + 1}-${file}`;

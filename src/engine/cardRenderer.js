@@ -311,6 +311,25 @@ export function renderCard(canvas, o) {
     boxes.push({ key: "qr", x: p.x - size / 2 - pad, y: top - pad, w: size + pad * 2, h });
   }
 
+  // Paid cards show a "preview" mark until they are issued.
+  if (o.watermark) {
+    ctx.save();
+    ctx.translate(W / 2, H / 2);
+    ctx.rotate(-Math.PI / 7);
+    ctx.font = fontString("Tajawal", W * 0.05, 800);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.direction = isArabic(o.watermark) ? "rtl" : "ltr";
+    ctx.fillStyle = "rgba(120, 120, 140, 0.2)";
+    const stepX = W * 0.55;
+    const stepY = W * 0.17;
+    for (let y = -H; y <= H; y += stepY) {
+      const shift = (Math.round(y / stepY) % 2) * (stepX / 2);
+      for (let x = -W; x <= W; x += stepX) ctx.fillText(o.watermark, x + shift, y);
+    }
+    ctx.restore();
+  }
+
   return boxes;
 }
 
