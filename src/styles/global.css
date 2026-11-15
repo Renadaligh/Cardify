@@ -2559,3 +2559,27 @@ input[type="range"] {
   border: 1px dashed rgba(245, 158, 11, 0.5);
   font-size: 0.9rem;
 }
+
+/* Pricing: the tagline stands out and has room before the steps */
+.cert-pricing .section-head {
+  margin-bottom: 30px;
+}
+
+.cert-pricing .section-head p {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fde68a;
+  background: rgba(250, 204, 21, 0.1);
+  border: 1px solid rgba(250, 204, 21, 0.35);
+}
+
+@media (max-width: 640px) {
+  .cert-pricing .section-head p {
+    border-radius: 14px;
+    font-size: 0.95rem;
+  }
+}
