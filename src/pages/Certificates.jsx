@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useApp } from "../context";
 import { navigate } from "../lib/router";
 import { ensureFonts } from "../engine/fonts";
@@ -13,14 +13,18 @@ import BatchDialog from "../components/BatchDialog";
 import SignaturePad from "../components/SignaturePad";
 import LogoList from "../components/LogoList";
 import LimitedTextarea from "../components/CharCounter";
-import { AlertModal } from "../components/Modal";
-import { ColorField, Field, FileButton, Segmented, StepTitle } from "../components/Controls";
+import Modal, { AlertModal } from "../components/Modal";
+import PackageCards from "../components/PackageCards";
+import { api, sitePage } from "../lib/api";
+import { serializeDesign } from "../engine/certDesign";
+import EditorSteps, { Step, MobileActionBar } from "../components/EditorSteps";
+import { ColorField, Field, FileButton, Segmented } from "../components/Controls";
 
 const CUSTOM = "custom";
 const REASON_MAX = 130;
 
 export default function Certificates() {
-  const { t, lang, toast } = useApp();
+  const { t, lang, toast, user, setUser, openAuth } = useApp();
   const [fontsReady, setFontsReady] = useState(false);
 
   // Designs: your image templates first, then the built-in styles.
@@ -50,6 +54,11 @@ export default function Certificates() {
   const [alert, setAlert] = useState(null);
   const [batchOpen, setBatchOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  // After issuing, the certificate is locked: { serial, batchId, name }.
+  const [issued, setIssued] = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [needCredits, setNeedCredits] = useState(null); // number of credits needed
+  const pricingRef = useRef(null);
 
   useEffect(() => {
     ensureFonts().then(() => setFontsReady(true));
@@ -129,6 +138,9 @@ export default function Certificates() {
     dateLabel: certLang === "ar" ? "التاريخ" : "Date",
     placeholderName: certLang === "ar" ? "اسم المُكرَّم" : "Recipient name",
     fontsReady,
+    // Preview carries a watermark; the issued certificate has the verification code instead.
+    watermark: issued ? null : t.certWatermark,
+    verify: issued ? { serial: issued.serial, url: sitePage(`/v/${issued.serial}`) } : null,
     ...overrides,
   });
 
@@ -138,7 +150,7 @@ export default function Certificates() {
   };
 
   const validate = () => {
-    if (!name.trim()) {
+    if (!issued && !name.trim()) {
       setAlert({ title: t.studentRequiredTitle, text: t.studentRequiredText });
       return false;
     }
@@ -168,7 +180,7 @@ export default function Certificates() {
     }
   };
 
-  const fileBase = () => `certificate-${safeFilename(name)}`;
+  const fileBase = () => `certificate-${safeFilename(issued?.name || name)}`;
 
   const onPdf = () =>
     run(async () => {
@@ -191,6 +203,58 @@ export default function Certificates() {
       if (result === "downloaded") toast(t.downloadedInstead);
     });
 
+  // ---- issuing (uses credits) ----
+
+  const ensureUser = async () => user || (await openAuth("signup", t.certLoginReason));
+
+  const issueRequest = async (names) => {
+    const opts = options({ watermark: null, verify: null });
+    const data = await api("POST", "/api/certificates/issue", {
+      recipients: names,
+      title,
+      // shown on the verification page: the account's school/company, else the last header line
+      issuer: user?.org || header.split(/\r?\n/).filter(Boolean).pop() || "",
+      design: serializeDesign(opts, design.id),
+    });
+    setUser((u) => (u ? { ...u, credits: data.credits } : u));
+    return data;
+  };
+
+  const onIssueClick = async () => {
+    if (!validate()) return;
+    const u = await ensureUser();
+    if (!u) return;
+    if (u.credits < 1) return setNeedCredits(1);
+    setConfirmOpen(true);
+  };
+
+  const confirmIssue = async () => {
+    setBusy(true);
+    try {
+      const data = await issueRequest([name.trim()]);
+      setIssued({ serial: data.certificates[0].serial, batchId: data.batchId, name: name.trim() });
+      setConfirmOpen(false);
+      toast(t.certIssuedToast);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {
+      setConfirmOpen(false);
+      if (e.code === "not_enough_credits") setNeedCredits(1);
+      else toast(t.paymentError);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onBatchClick = async () => {
+    const u = await ensureUser();
+    if (u) setBatchOpen(true);
+  };
+
+  const startNew = () => {
+    setIssued(null);
+    setName("");
+  };
+
   const onImage = (setter) => async (file) => {
     try {
       const img = await readImageFile(file);
@@ -212,7 +276,40 @@ export default function Certificates() {
             {t.certSubtitle}
           </p>
         </div>
+        <div className="credit-pill">
+          {user ? (
+            <>
+              <span>
+                {t.yourBalance}: <strong>{user.credits}</strong> {user.credits === 1 ? t.certOne : t.certMany}
+              </span>
+              <button className="btn btn-small btn-secondary" onClick={() => pricingRef.current?.scrollIntoView({ behavior: "smooth" })}>
+                {t.buyCredits}
+              </button>
+            </>
+          ) : (
+            <>
+              <span>{t.freeCertsOffer}</span>
+              <button className="btn btn-small btn-primary" onClick={() => openAuth("signup")}>
+                {t.authSignup}
+              </button>
+            </>
+          )}
+        </div>
       </div>
+
+      {issued && (
+        <div className="issued-banner" role="status">
+          <div>
+            <strong>{t.certIssuedTitle}</strong>
+            <span>
+              {t.certSerial}: <bdi>{issued.serial}</bdi>
+            </span>
+          </div>
+          <a className="btn btn-small btn-secondary" href={`#/v/${issued.serial}`} target="_blank" rel="noreferrer">
+            {t.certVerifyPage}
+          </a>
+        </div>
+      )}
 
       <div className="editor">
         <div className="panel stage-wrap">
@@ -220,8 +317,10 @@ export default function Certificates() {
         </div>
 
         <div className="controls">
-          <section className="panel control-block">
-            <StepTitle n={1}>{t.certDesign}</StepTitle>
+          <fieldset className="lock-fieldset" disabled={!!issued}>
+          {issued && <p className="locked-note">{t.certLockedNote}</p>}
+          <EditorSteps>
+          <Step label={t.certDesign}>
             <div className="template-grid cert-grid">
               {designs.map((d) => (
                 <button
@@ -263,10 +362,9 @@ export default function Certificates() {
                 ]}
               />
             </Field>
-          </section>
+          </Step>
 
-          <section className="panel control-block">
-            <StepTitle n={2}>{t.content}</StepTitle>
+          <Step label={t.content}>
             <Field label={t.certType} htmlFor="ctype">
               <select id="ctype" className="select" value={type} onChange={(e) => setType(e.target.value)}>
                 {CERT_TYPES.map((c) => (
@@ -348,10 +446,9 @@ export default function Certificates() {
                 ]}
               />
             </Field>
-          </section>
+          </Step>
 
-          <section className="panel control-block">
-            <StepTitle n={3}>{t.signatureSection}</StepTitle>
+          <Step label={t.signatureSection}>
             <Field label={t.headerLines} htmlFor="header">
               <textarea
                 id="header"
@@ -400,43 +497,148 @@ export default function Certificates() {
                 <FileButton label={t.uploadSignature} accept="image/png,image/jpeg,image/webp" onFile={onImage(setSignature)} />
               </div>
             </Field>
-          </section>
+          </Step>
+          </EditorSteps>
+
+          </fieldset>
 
           <section className="panel control-block actions">
-            <button className="btn btn-primary" onClick={onPdf} disabled={busy}>
-              {t.downloadPdf}
-            </button>
-            <button className="btn btn-secondary" onClick={onPng} disabled={busy}>
-              {t.downloadPng}
-            </button>
-            <button className="btn btn-secondary" onClick={onShare} disabled={busy}>
-              {t.share}
-            </button>
-            <button className="btn btn-secondary" style={{ gridColumn: "1 / -1" }} onClick={() => setBatchOpen(true)}>
-              {t.certBatch}
-            </button>
+            {issued ? (
+              <>
+                <button className="btn btn-primary" onClick={onPdf} disabled={busy}>
+                  {t.downloadPdf}
+                </button>
+                <button className="btn btn-secondary" onClick={onPng} disabled={busy}>
+                  {t.downloadPng}
+                </button>
+                <button className="btn btn-secondary" onClick={onShare} disabled={busy}>
+                  {t.share}
+                </button>
+                <button className="btn btn-secondary" style={{ gridColumn: "1 / -1" }} onClick={startNew}>
+                  {t.certNew}
+                </button>
+              </>
+            ) : (
+              <>
+                <button className="btn btn-primary" style={{ gridColumn: "1 / -1" }} onClick={onIssueClick} disabled={busy}>
+                  {t.certIssue}
+                </button>
+                <button className="btn btn-secondary" style={{ gridColumn: "1 / -1" }} onClick={onBatchClick}>
+                  {t.certBatch}
+                </button>
+                <p className="hint" style={{ gridColumn: "1 / -1", margin: 0 }}>
+                  {t.certPreviewNote}
+                </p>
+              </>
+            )}
           </section>
         </div>
       </div>
 
+      <section className="cert-pricing" ref={pricingRef}>
+        <div className="section-head">
+          <h2>{t.pricingTitle}</h2>
+          <p>{t.pricingSubtitle}</p>
+        </div>
+        <ol className="how-steps">
+          {t.howSteps.map((s, i) => (
+            <li key={i}>
+              <span className="how-num">{i + 1}</span>
+              <strong>{s[0]}</strong>
+              <span>{s[1]}</span>
+            </li>
+          ))}
+        </ol>
+        <PackageCards />
+      </section>
+
+      <MobileActionBar label={issued ? t.downloadPdf : t.certIssue} onClick={issued ? onPdf : onIssueClick} disabled={busy} />
+
       {alert && <AlertModal title={alert.title} text={alert.text} buttonLabel={t.ok} onClose={() => setAlert(null)} />}
+
+      {confirmOpen && (
+        <ConfirmIssue
+          t={t}
+          name={name.trim()}
+          title={title}
+          credits={user?.credits ?? 0}
+          busy={busy}
+          onConfirm={confirmIssue}
+          onClose={() => setConfirmOpen(false)}
+        />
+      )}
+
+      {needCredits !== null && (
+        <Modal title={t.needCreditsTitle} onClose={() => setNeedCredits(null)}>
+          <p>{t.needCreditsText(needCredits, user?.credits ?? 0)}</p>
+          <PackageCards compact />
+        </Modal>
+      )}
 
       {batchOpen && (
         <BatchDialog
           title={t.certBatch}
-          intro={t.certBatchIntro}
+          intro={t.certBatchIntroPaid}
           onClose={() => setBatchOpen(false)}
           outputName="certificates.pdf"
+          actionLabel={(n) => (n ? t.certIssueN(n) : t.generate)}
           build={async (names, onProgress) => {
-            const pages = [];
-            for (let i = 0; i < names.length; i++) {
-              onProgress(i + 1);
-              pages.push(await pdfPage(await renderTo({ name: names[i] })));
+            if ((user?.credits ?? 0) < names.length) {
+              const err = new Error("credits");
+              err.userMessage = t.needCreditsBatch(names.length, user?.credits ?? 0);
+              throw err;
             }
+            let data;
+            try {
+              data = await issueRequest(names);
+            } catch (e) {
+              const err = new Error(e.code);
+              err.userMessage = e.code === "not_enough_credits" ? t.needCreditsBatch(names.length, user?.credits ?? 0) : t.paymentError;
+              throw err;
+            }
+            const pages = [];
+            for (let i = 0; i < data.certificates.length; i++) {
+              onProgress(i + 1);
+              const c = data.certificates[i];
+              pages.push(
+                await pdfPage(
+                  await renderTo({ name: c.name, watermark: null, verify: { serial: c.serial, url: sitePage(`/v/${c.serial}`) } })
+                )
+              );
+            }
+            toast(t.certBatchIssued(names.length));
             return createImagePdf(pages);
           }}
-        />
+        >
+          <p className="hint">{t.certBatchCost(user?.credits ?? 0)}</p>
+        </BatchDialog>
       )}
     </main>
+  );
+}
+
+function ConfirmIssue({ t, name, title, credits, busy, onConfirm, onClose }) {
+  return (
+    <Modal
+      title={t.certConfirmTitle}
+      onClose={busy ? undefined : onClose}
+      center
+      actions={
+        <>
+          <button className="btn btn-primary" onClick={onConfirm} disabled={busy} autoFocus>
+            {busy ? t.issuing : t.certConfirmButton}
+          </button>
+          <button className="btn btn-ghost" onClick={onClose} disabled={busy}>
+            {t.cancel}
+          </button>
+        </>
+      }
+    >
+      <p>
+        <strong>{name}</strong> · {title}
+      </p>
+      <p>{t.certConfirmText}</p>
+      <p className="hint">{t.certConfirmCost(credits)}</p>
+    </Modal>
   );
 }

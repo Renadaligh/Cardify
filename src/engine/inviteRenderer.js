@@ -200,13 +200,13 @@ function dateRow(ctx, o, k, c, maxW) {
 }
 
 function qrBlock(ctx, o, k, c) {
-  const link = o.mapLink?.trim();
+  const link = o.qr?.payload;
   if (!link) return null;
-  const size = 210 * Math.max(0.8, k);
-  const caption = o.lang === "en" ? "Scan for the location" : "امسح الرمز للوصول إلى الموقع";
+  const size = 210 * Math.max(0.8, k) * (o.qr.scale || 1);
+  const caption = o.qr.caption || "";
   const capSize = 24 * k;
   return {
-    h: size + capSize * 2,
+    h: size + (caption ? capSize * 2 : 10),
     draw(y, cx) {
       const pad = 10;
       ctx.save();
@@ -230,6 +230,7 @@ function qrBlock(ctx, o, k, c) {
       } catch {
         /* link too long: skip the code */
       }
+      if (!caption) return;
       setText(ctx, o.textFont, capSize, 500, caption);
       ctx.fillStyle = c.muted;
       ctx.textAlign = "center";

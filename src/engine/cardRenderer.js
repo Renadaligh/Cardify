@@ -1,4 +1,5 @@
-import { DESIGNS } from "./designs";
+import { DESIGNS, roundRect } from "./designs";
+import { drawQr } from "../lib/qr";
 import { fontString } from "./fonts";
 import { fitParagraph } from "./textLayout";
 import { isArabic, seededRandom } from "../lib/text";
@@ -275,6 +276,39 @@ export function renderCard(canvas, o) {
       ctx.drawImage(l.img, p.x - lw / 2, p.y - lh / 2, lw, lh);
       boxes.push({ key, x: p.x - lw / 2, y: p.y - lh / 2, w: lw, h: lh });
     });
+  }
+
+  // Optional QR code (song, location, photo, link…) in a bottom corner; draggable.
+  if (o.qr?.payload) {
+    const size = frame.w * 0.15 * (o.qr.scale || 1);
+    const pad = size * 0.07;
+    const capSize = Math.max(16, frame.w * 0.021 * (o.qr.scale || 1));
+    const caption = o.qr.caption?.trim() || "";
+    const spec = { x: lang === "ar" ? 0.13 : 0.87, y: 0.84 };
+    const p = pos("qr", spec);
+    const top = p.y - size / 2;
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.22)";
+    ctx.shadowBlur = size * 0.12;
+    ctx.fillStyle = "#ffffff";
+    roundRect(ctx, p.x - size / 2 - pad, top - pad, size + pad * 2, size + pad * 2 + (caption ? capSize * 1.9 : 0), size * 0.1);
+    ctx.fill();
+    ctx.restore();
+    try {
+      drawQr(ctx, o.qr.payload, p.x - size / 2, top, size, "#111111", "#ffffff");
+    } catch {
+      /* too long for a QR code */
+    }
+    if (caption) {
+      ctx.font = fontString("Tajawal", capSize, 700);
+      ctx.direction = isArabic(caption) ? "rtl" : "ltr";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#1f2937";
+      ctx.fillText(caption, p.x, top + size + capSize * 0.95, size + pad * 2 - 8);
+    }
+    const h = size + pad * 2 + (caption ? capSize * 1.9 : 0);
+    boxes.push({ key: "qr", x: p.x - size / 2 - pad, y: top - pad, w: size + pad * 2, h });
   }
 
   return boxes;

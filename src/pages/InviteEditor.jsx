@@ -10,9 +10,12 @@ import { createZip } from "../lib/zip";
 import CardStage from "../components/CardStage";
 import BatchDialog from "../components/BatchDialog";
 import { AlertModal } from "../components/Modal";
-import { ColorField, Field, Segmented, StepTitle } from "../components/Controls";
+import EditorSteps, { Step, MobileActionBar } from "../components/EditorSteps";
+import { ColorField, Field, Segmented } from "../components/Controls";
 import LogoList from "../components/LogoList";
 import LimitedTextarea from "../components/CharCounter";
+import QrField from "../components/QrField";
+import { emptyQr, qrOption } from "../lib/qrContent";
 
 const GUEST_DEFAULTS = {
   ar: { prefix: "حضرة/", suffix: "حفظه الله" },
@@ -45,7 +48,8 @@ export default function InviteEditor({ occasionId }) {
   const [time, setTime] = useState("20:00");
   const [venue, setVenue] = useState("");
   const [city, setCity] = useState("");
-  const [mapLink, setMapLink] = useState("");
+  // The QR code: the venue's map link by default, or a song, photo, link…
+  const [qr, setQr] = useState({ ...emptyQr, type: "map" });
 
   const [audience, setAudience] = useState("all");
   const [notes, setNotes] = useState({});
@@ -133,7 +137,7 @@ export default function InviteEditor({ occasionId }) {
     time,
     venue,
     city,
-    mapLink,
+    qr: qrOption(qr, L),
     audience,
     notes,
     customNote,
@@ -173,7 +177,8 @@ export default function InviteEditor({ occasionId }) {
       setAlert({ title: t.fieldRequiredTitle, text: t.fieldRequiredText.replace("{field}", missing.join("، ")) });
       return false;
     }
-    if (mapLink.trim() && !/^https?:\/\//i.test(mapLink.trim())) {
+    const needsUrl = ["map", "link"].includes(qr.type) || (qr.type === "song" && !qr.mediaPage);
+    if (needsUrl && qr.url.trim() && !/^https?:\/\/\S+\.\S+/i.test(qr.url.trim())) {
       setAlert({ title: t.invMapInvalidTitle, text: t.invMapInvalidText });
       return false;
     }
@@ -242,8 +247,8 @@ export default function InviteEditor({ occasionId }) {
         </div>
 
         <div className="controls">
-          <section className="panel control-block">
-            <StepTitle n={1}>{t.stepTemplate}</StepTitle>
+          <EditorSteps>
+          <Step label={t.stepTemplate}>
             <div className="template-grid template-grid-tall">
               {templates.map((tp) => (
                 <button
@@ -261,10 +266,9 @@ export default function InviteEditor({ occasionId }) {
                 </button>
               ))}
             </div>
-          </section>
+          </Step>
 
-          <section className="panel control-block">
-            <StepTitle n={2}>{t.invStepWho}</StepTitle>
+          <Step label={t.invStepWho}>
 
             <Field label={t.cardLanguage}>
               <Segmented
@@ -369,10 +373,9 @@ export default function InviteEditor({ occasionId }) {
                 <p className="hint">{t.invGuestHint}</p>
               </>
             )}
-          </section>
+          </Step>
 
-          <section className="panel control-block">
-            <StepTitle n={3}>{t.invStepWhen}</StepTitle>
+          <Step label={t.invStepWhen}>
             <Field label={t.invDate} htmlFor="date" hint={t.invDateHint}>
               <input id="date" type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
             </Field>
@@ -415,21 +418,12 @@ export default function InviteEditor({ occasionId }) {
                 onChange={(e) => setCity(e.target.value)}
               />
             </Field>
-            <Field label={t.invMap} htmlFor="map" hint={t.invMapHint}>
-              <input
-                id="map"
-                className="input"
-                dir="ltr"
-                inputMode="url"
-                value={mapLink}
-                placeholder="https://maps.app.goo.gl/..."
-                onChange={(e) => setMapLink(e.target.value)}
-              />
+            <Field label={t.invQr}>
+              <QrField value={qr} onChange={setQr} cardLang={L} />
             </Field>
-          </section>
+          </Step>
 
-          <section className="panel control-block">
-            <StepTitle n={4}>{t.invStepNotes}</StepTitle>
+          <Step label={t.invStepNotes}>
             <Field label={t.invAudience}>
               <Segmented
                 label={t.invAudience}
@@ -471,10 +465,9 @@ export default function InviteEditor({ occasionId }) {
                 onChange={(e) => setClosing(e.target.value)}
               />
             </Field>
-          </section>
+          </Step>
 
-          <section className="panel control-block">
-            <StepTitle n={5}>{t.stepStyle}</StepTitle>
+          <Step label={t.stepStyle}>
             <Field label={t.invNamesFont} htmlFor="font">
               <select id="font" className="select" value={font} onChange={(e) => setFont(e.target.value)}>
                 <option value="">{t.fontDefault}</option>
@@ -517,12 +510,12 @@ export default function InviteEditor({ occasionId }) {
               />
             </Field>
             <p className="hint">{t.invAutoFit}</p>
-          </section>
+          </Step>
 
-          <section className="panel control-block">
-            <StepTitle n={6}>{t.stepLogo}</StepTitle>
+          <Step label={t.stepLogo}>
             <LogoList logos={logos} onChange={setLogos} />
-          </section>
+          </Step>
+          </EditorSteps>
 
           <section className="panel control-block actions">
             <button className="btn btn-primary" onClick={onDownload} disabled={busy}>
@@ -537,6 +530,8 @@ export default function InviteEditor({ occasionId }) {
           </section>
         </div>
       </div>
+
+      <MobileActionBar label={t.invDownload} onClick={onDownload} disabled={busy} />
 
       {alert && <AlertModal title={alert.title} text={alert.text} buttonLabel={t.ok} onClose={() => setAlert(null)} />}
 

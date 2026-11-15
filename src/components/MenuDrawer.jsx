@@ -49,6 +49,9 @@ export default function MenuDrawer({ open, onClose, current }) {
           >
             {t.certificatesCta}
           </button>
+          <button className="drawer-link" aria-current={current === "account"} onClick={() => go("/account")}>
+            {t.accountTitle}
+          </button>
         </div>
 
         {SECTIONS.filter((s) => s.items.length).map((section) => (

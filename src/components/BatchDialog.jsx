@@ -11,7 +11,7 @@ const MAX = 300;
  * Collects a list of names (typed or from Excel/CSV) and builds one file for all of them.
  * build(names, onProgress) must return a Blob.
  */
-export default function BatchDialog({ title, intro, onClose, validate, build, outputName }) {
+export default function BatchDialog({ title, intro, onClose, validate, build, outputName, actionLabel, children }) {
   const { t, toast } = useApp();
   const [text, setText] = useState("");
   const [error, setError] = useState("");
@@ -42,8 +42,9 @@ export default function BatchDialog({ title, intro, onClose, validate, build, ou
       downloadBlob(blob, outputName);
       toast(t.batchDone);
       onClose();
-    } catch {
-      setError(t.fileError);
+    } catch (e) {
+      // build() can throw an error with a message meant for the user (e.g. not enough credits)
+      setError(e?.userMessage || t.fileError);
       setProgress(null);
     }
   };
@@ -57,7 +58,7 @@ export default function BatchDialog({ title, intro, onClose, validate, build, ou
       actions={
         <>
           <button className="btn btn-primary" onClick={run} disabled={running}>
-            {running ? t.generating(progress, names.length) : t.generate}
+            {running ? t.generating(progress, names.length) : actionLabel ? actionLabel(names.length) : t.generate}
           </button>
           <button className="btn btn-ghost" onClick={onClose} disabled={running}>
             {t.cancel}
@@ -66,6 +67,7 @@ export default function BatchDialog({ title, intro, onClose, validate, build, ou
       }
     >
       <p>{intro}</p>
+      {children}
       <textarea
         className="textarea"
         rows={7}

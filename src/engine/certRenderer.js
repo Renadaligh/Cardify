@@ -4,6 +4,7 @@ import { alpha, star8Path, star5Path, diamond, roundRect, confettiPiece } from "
 import { fontString } from "./fonts";
 import { fitParagraph } from "./textLayout";
 import { isArabic, seededRandom } from "../lib/text";
+import { drawQr } from "../lib/qr";
 
 export const CERT_SIZE = { w: 2339, h: 1654 };
 
@@ -443,4 +444,44 @@ export function renderCertificate(canvas, o) {
 
   if (L.medal.show && !tpl?.image && o.style !== "kids") medal(ctx, cx, rowY + 40, 88, look.medal);
   else if (L.medal.show && tpl?.image && tpl.medal) medal(ctx, cx, rowY + 40, 88, look.medal);
+
+  // Issued certificates: QR code to the verification page + serial number, under the date
+  // (QR and number side by side, so it stays clear of the bottom border).
+  if (o.verify) {
+    const size = 124;
+    ctx.font = fontString("Tajawal", 26, 700);
+    const serialW = ctx.measureText(o.verify.serial).width;
+    const gap = 16;
+    const blockW = size + gap + serialW;
+    const left = dateX - blockW / 2;
+    const qy = rowY + (o.dateText ? 104 : 10);
+    // QR on the outer side (left in Arabic, right in English)
+    const qx = rtl ? left : left + serialW + gap;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(qx - 6, qy - 6, size + 12, size + 12);
+    drawQr(ctx, o.verify.url, qx, qy, size, "#1f2937", "#ffffff");
+    const tx = rtl ? left + size + gap + serialW / 2 : left + serialW / 2;
+    text(ctx, o.verify.serial, tx, qy + size / 2, { font: "Tajawal", size: 26, weight: 700, color: look.muted, maxW: 320 });
+  }
+
+  if (o.watermark) drawWatermark(ctx, W, H, o.watermark);
+}
+
+/** Diagonal "preview" text over the whole page (removed once the certificate is issued). */
+function drawWatermark(ctx, W, H, label) {
+  ctx.save();
+  ctx.translate(W / 2, H / 2);
+  ctx.rotate(-Math.PI / 7);
+  ctx.font = fontString("Tajawal", 92, 800);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.direction = isArabic(label) ? "rtl" : "ltr";
+  ctx.fillStyle = "rgba(120, 120, 140, 0.16)";
+  const stepX = 1000;
+  const stepY = 300;
+  for (let y = -H; y <= H; y += stepY) {
+    const shift = ((y / stepY) % 2) * (stepX / 2);
+    for (let x = -W; x <= W; x += stepX) ctx.fillText(label, x + shift, y);
+  }
+  ctx.restore();
 }

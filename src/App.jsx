@@ -10,6 +10,12 @@ import Home from "./pages/Home";
 import Editor from "./pages/Editor";
 import InviteEditor from "./pages/InviteEditor";
 import Certificates from "./pages/Certificates";
+import Account from "./pages/Account";
+import Admin from "./pages/Admin";
+import Verify from "./pages/Verify";
+import MediaPage from "./pages/MediaPage";
+import AuthModal from "./components/AuthModal";
+import { api, isDemo } from "./lib/api";
 
 const CERT_THEME = { accent: "#2563eb", blobs: ["#3b82f6", "#f59e0b", "#14b8a6"] };
 
@@ -48,6 +54,35 @@ export default function App() {
   }, []);
   const toastTimer = useRef(null);
 
+  // Account: undefined = still checking, null = signed out.
+  const [user, setUser] = useState(undefined);
+  const [demo, setDemo] = useState(false);
+  const [auth, setAuth] = useState(null); // { mode, reason, resolve }
+  const refreshUser = useCallback(async () => {
+    try {
+      const data = await api("GET", "/api/me");
+      setUser(data.user);
+      return data.user;
+    } catch {
+      setUser(null);
+      return null;
+    }
+  }, []);
+  useEffect(() => {
+    refreshUser();
+    isDemo().then(setDemo);
+  }, [refreshUser]);
+  /** Opens the sign-in dialog; resolves with the user, or null if closed. */
+  const openAuth = useCallback(
+    (mode = "signup", reason = "") => new Promise((resolve) => setAuth({ mode, reason, resolve })),
+    []
+  );
+  const signOut = useCallback(async () => {
+    await api("POST", "/api/auth/logout", {}).catch(() => {});
+    setUser(null);
+    navigate("/");
+  }, []);
+
   const t = translations[lang];
 
   // The site is designed for night mode only.
@@ -64,7 +99,7 @@ export default function App() {
   // Each occasion tints the site with its own colours.
   const theme = useMemo(() => {
     if (route.page === "editor") return getOccasion(route.occasionId)?.theme || DEFAULT_THEME;
-    if (route.page === "certificates") return CERT_THEME;
+    if (["certificates", "account", "admin", "verify"].includes(route.page)) return CERT_THEME;
     // On the home page the background light follows the sky scene above it.
     return heroTint ? { ...DEFAULT_THEME, blobs: heroTint } : DEFAULT_THEME;
   }, [route.page, route.occasionId, heroTint]);
@@ -91,6 +126,12 @@ export default function App() {
     setHomeSection,
     scrollRequest,
     showSection,
+    user,
+    setUser,
+    refreshUser,
+    openAuth,
+    signOut,
+    demo,
   };
 
   const occasion = route.page === "editor" ? getOccasion(route.occasionId) : null;
@@ -108,6 +149,11 @@ export default function App() {
         <Background colors={theme.blobs} />
         <div className="app-content">
           <TopBar current={route.page === "editor" ? route.occasionId : route.page} section={currentSection} />
+          {demo && ["certificates", "account", "admin"].includes(route.page) && (
+            <div className="container demo-banner" role="note">
+              {t.demoBanner}
+            </div>
+          )}
           {route.page === "home" && <Home />}
           {route.page === "editor" &&
             (kindOf(occasion) === "invitation" ? (
@@ -116,8 +162,28 @@ export default function App() {
               <Editor key={route.occasionId} occasionId={route.occasionId} />
             ))}
           {route.page === "certificates" && <Certificates />}
+          {route.page === "account" && <Account query={route.query} />}
+          {route.page === "admin" && <Admin />}
+          {route.page === "verify" && <Verify serial={route.serial} />}
+          {route.page === "media" && <MediaPage id={route.mediaId} />}
         </div>
         <Footer />
+        {auth && (
+          <AuthModal
+            initialMode={auth.mode}
+            reason={auth.reason}
+            onDone={(u) => {
+              setUser(u);
+              auth.resolve(u);
+              setAuth(null);
+              toast(t.authWelcome);
+            }}
+            onClose={() => {
+              auth.resolve(null);
+              setAuth(null);
+            }}
+          />
+        )}
         {toastMsg && (
           <div className="toast" role="status">
             {toastMsg}

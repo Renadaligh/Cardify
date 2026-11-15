@@ -11,6 +11,7 @@ import { renderCertificate } from "../engine/certRenderer";
 import { loadImage } from "../lib/files";
 import HeroSky from "../hero/HeroSky";
 import { SCENES } from "../hero/skyScenes";
+import { renderExamples } from "../data/examples";
 
 const FAN_SIZE = 3;
 
@@ -27,7 +28,7 @@ function OccasionTile({ occasion, lang, t, fan, group, tall }) {
       <span className="occ-fan" aria-hidden="true">
         {Array.from({ length: FAN_SIZE }, (_, i) => (
           <span key={i} className="occ-card" style={{ "--i": i - 1 }}>
-            {fan?.[i] && <img src={fan[i]} alt="" loading="lazy" />}
+            {fan?.[i] ? <img src={fan[i]} alt="" loading="lazy" /> : <span className="occ-skeleton skeleton" />}
           </span>
         ))}
       </span>
@@ -83,6 +84,7 @@ export default function Home() {
   }, [scrollRequest]);
 
   const [cert, setCert] = useState(null);
+  const thanks = OCCASIONS.find((o) => o.id === "thanks");
   const groupName = Object.fromEntries(GROUPS.map((g) => [g.id, g.name[lang]]));
   const section = SECTIONS.find((s) => s.id === homeSection) || SECTIONS[0];
   const visible =
@@ -96,15 +98,32 @@ export default function Home() {
           : t.invitePersonal
         : section.name[lang];
 
-  // Fans of real templates for every occasion, drawn a few at a time so scrolling stays smooth.
+  // Fans of real templates for every occasion. The section on screen is drawn first,
+  // one occasion per frame so scrolling stays smooth; the rest follow when the browser is idle.
+  const fanCache = useRef({});
+  const [examples, setExamples] = useState(null);
   useEffect(() => {
     let cancelled = false;
+    const cache = (fanCache.current[lang] ||= {});
+    setFans({ ...cache });
+    const idle = () =>
+      new Promise((resolve) => (window.requestIdleCallback ? requestIdleCallback(resolve, { timeout: 300 }) : setTimeout(resolve, 16)));
     (async () => {
       await ensureFonts();
-      clearThumbnailCache();
-      clearInviteThumbnails();
-      const next = {};
-      for (const occasion of [...OCCASIONS, ...ANNOUNCEMENTS, ...INVITATIONS]) {
+      if (cancelled) return;
+      if (!fanCache.current.fontsDone) {
+        // thumbnails drawn before the fonts arrived are redrawn once
+        fanCache.current.fontsDone = true;
+        clearThumbnailCache();
+        clearInviteThumbnails();
+      }
+      const current = section.items;
+      const rest = [...OCCASIONS, ...ANNOUNCEMENTS, ...INVITATIONS].filter((o) => !current.includes(o));
+      const order = [...current, thanks, ...rest];
+      let drawnVisible = 0;
+      for (const occasion of order) {
+        if (cancelled) return;
+        if (cache[occasion.id]) continue;
         const list = templatesFor(occasion).slice(0, FAN_SIZE);
         const urls = [];
         for (const tpl of list) {
@@ -116,19 +135,27 @@ export default function Home() {
               : templateThumbnail(tpl, occasion, lang, img)
           );
         }
-        next[occasion.id] = urls;
+        cache[occasion.id] = urls;
         if (cancelled) return;
-        setFans({ ...next });
-        await nextFrame();
+        setFans({ ...cache });
+        drawnVisible += 1;
+        if (drawnVisible === current.length + 1 && !cache.__examples) {
+          cache.__examples = renderExamples(lang);
+          setExamples(cache.__examples);
+          setCert(certificatePreview(lang));
+        }
+        await (drawnVisible <= current.length ? nextFrame() : idle());
       }
-      if (!cancelled) setCert(certificatePreview(lang));
+      if (!cancelled) {
+        if (!cache.__examples) cache.__examples = renderExamples(lang);
+        setExamples(cache.__examples);
+        setCert(certificatePreview(lang));
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [lang]);
-
-  const thanks = OCCASIONS.find((o) => o.id === "thanks");
+  }, [lang, section.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <main>
@@ -158,6 +185,29 @@ export default function Home() {
       </HeroSky>
 
       <section ref={occasionsRef} className="container section occasions-section">
+        <div className="examples">
+          <div className="examples-head">
+            <h2>{t.examplesTitle}</h2>
+            <p>{t.examplesSubtitle}</p>
+          </div>
+          <div className="examples-strip">
+            {(examples || Array.from({ length: 6 }, (_, i) => ({ id: i, kind: i === 1 ? "tall" : i === 3 ? "wide" : "square" }))).map(
+              (ex) => (
+                <button
+                  key={ex.id}
+                  className={`example example-${ex.kind}`}
+                  onClick={() => ex.route && navigate(ex.route)}
+                  disabled={!ex.url}
+                  aria-label={ex.label}
+                >
+                  {ex.url ? <img src={ex.url} alt="" /> : <span className="example-skeleton skeleton" />}
+                  {ex.label && <span className="example-label">{ex.label}</span>}
+                </button>
+              )
+            )}
+          </div>
+        </div>
+
         <div className="section-tabs" role="tablist" aria-label={t.occasionsTitle}>
           {SECTIONS.filter((s) => s.items.length).map((s) => (
             <button

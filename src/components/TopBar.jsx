@@ -29,7 +29,7 @@ export default function TopBar({ current, section }) {
   const onSky = isHome && !scrolled;
 
   // The bar is fixed, so other pages get a spacer with its resting height (no jump when it shrinks).
-  const { t, lang, setLang, showSection, homeSection } = useApp();
+  const { t, lang, setLang, showSection, homeSection, user, openAuth } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const base = import.meta.env.BASE_URL;
@@ -58,6 +58,18 @@ export default function TopBar({ current, section }) {
       </nav>
 
       <div className="topbar-actions">
+        <button
+          className="icon-button account-button"
+          onClick={() => (user ? navigate("/account") : openAuth("login"))}
+          aria-label={user ? t.accountTitle : t.authLogin}
+          title={user ? `${t.accountTitle} · ${user.credits}` : t.authLogin}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="8.5" r="3.6" fill="none" stroke="currentColor" strokeWidth="2" />
+            <path d="M4.8 19.5c1.3-3.4 4-5 7.2-5s5.9 1.6 7.2 5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          {user && <span className="account-dot" aria-hidden="true" />}
+        </button>
         <button className="pill-toggle" onClick={() => setLang(lang === "ar" ? "en" : "ar")}>
           <img src={`${base}logos/LanguageDark.png`} alt="" />
           <span>{lang === "ar" ? t.english : t.arabic}</span>

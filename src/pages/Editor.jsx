@@ -9,9 +9,12 @@ import { createZip } from "../lib/zip";
 import CardStage from "../components/CardStage";
 import BatchDialog from "../components/BatchDialog";
 import { AlertModal } from "../components/Modal";
-import { ColorField, Field, Segmented, StepTitle } from "../components/Controls";
+import EditorSteps, { Step, MobileActionBar } from "../components/EditorSteps";
+import { ColorField, Field, Segmented } from "../components/Controls";
 import LogoList from "../components/LogoList";
 import LimitedTextarea from "../components/CharCounter";
+import QrField from "../components/QrField";
+import { emptyQr, qrOption } from "../lib/qrContent";
 import { ANNOUNCEMENT_FIELDS, announcementText } from "../data/announcements";
 
 const CUSTOM = "custom";
@@ -48,6 +51,7 @@ export default function Editor({ occasionId }) {
   const [accent, setAccent] = useState(null);
   const [textScale, setTextScale] = useState(1);
   const [logos, setLogos] = useState([]);
+  const [qr, setQr] = useState(emptyQr);
   const [size, setSize] = useState("square");
   const [offsets, setOffsets] = useState({});
 
@@ -140,6 +144,7 @@ export default function Editor({ occasionId }) {
     accent,
     textScale,
     logos,
+    qr: qrOption(qr, cardLang),
     offsets,
     image,
     placeholders: isAnnounce ? {} : { name: t.namePlaceholder, to: t.toPlaceholder },
@@ -249,8 +254,8 @@ export default function Editor({ occasionId }) {
         </div>
 
         <div className="controls">
-          <section className="panel control-block">
-            <StepTitle n={1}>{t.stepTemplate}</StepTitle>
+          <EditorSteps>
+          <Step label={t.stepTemplate}>
             <div className="template-grid">
               {templates.map((tp) => (
                 <button
@@ -264,10 +269,9 @@ export default function Editor({ occasionId }) {
                 </button>
               ))}
             </div>
-          </section>
+          </Step>
 
-          <section className="panel control-block">
-            <StepTitle n={2}>{t.stepText}</StepTitle>
+          <Step label={t.stepText}>
 
             {isAnnounce && (
               <>
@@ -410,10 +414,9 @@ export default function Editor({ occasionId }) {
                 />
               </Field>
             )}
-          </section>
+          </Step>
 
-          <section className="panel control-block">
-            <StepTitle n={3}>{t.stepStyle}</StepTitle>
+          <Step label={t.stepStyle}>
 
             <Field label={t.font} htmlFor="font">
               <select id="font" className="select" value={font} onChange={(e) => setFont(e.target.value)}>
@@ -470,10 +473,9 @@ export default function Editor({ occasionId }) {
             >
               {t.resetPositions}
             </button>
-          </section>
+          </Step>
 
-          <section className="panel control-block">
-            <StepTitle n={4}>{t.stepLogo}</StepTitle>
+          <Step label={t.stepLogo}>
             <LogoList
               logos={logos}
               onChange={setLogos}
@@ -481,10 +483,16 @@ export default function Editor({ occasionId }) {
                 setOffsets((prev) => Object.fromEntries(Object.entries(prev).filter(([k]) => !k.startsWith("logo"))))
               }
             />
-          </section>
+          </Step>
 
-          <section className="panel control-block">
-            <StepTitle n={5}>{t.stepSize}</StepTitle>
+          <Step label={t.stepQr}>
+            <p className="hint" style={{ marginTop: 0 }}>
+              {t.qrIntro}
+            </p>
+            <QrField value={qr} onChange={setQr} cardLang={cardLang} />
+          </Step>
+
+          <Step label={t.stepSize}>
             <Segmented
               label={t.stepSize}
               value={size}
@@ -494,7 +502,8 @@ export default function Editor({ occasionId }) {
                 { value: "story", label: t.story },
               ]}
             />
-          </section>
+          </Step>
+          </EditorSteps>
 
           <section className="panel control-block actions">
             <button className="btn btn-primary" onClick={onDownload} disabled={busy}>
@@ -511,6 +520,8 @@ export default function Editor({ occasionId }) {
           </section>
         </div>
       </div>
+
+      <MobileActionBar label={t.download} onClick={onDownload} disabled={busy} />
 
       {alert && <AlertModal title={alert.title} text={alert.text} buttonLabel={t.ok} onClose={() => setAlert(null)} />}
 
