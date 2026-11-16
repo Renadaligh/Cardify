@@ -161,10 +161,15 @@ function kingdomCentre(ctx, cx, base, H, W, glow) {
   path();
   ctx.stroke();
   ctx.restore();
-  // skybridge across the opening
-  const by = top + H * 0.13;
+  // skybridge across the upper part of the opening, meeting both sides of the curve
+  const dip = H * 0.42; // control offset of the opening's curve (its lowest point is dip / 2)
+  const by = top + (dip / 2) * 0.4;
+  const k = (by - top) / (2 * dip);
+  const tt = (1 - Math.sqrt(1 - 4 * k)) / 2;
+  const half = horn * (1 - 2 * tt);
+  const thick = Math.max(2, H * 0.014);
   ctx.fillStyle = `rgba(46, 230, 122, ${0.9 * glow})`;
-  ctx.fillRect(cx - W * 0.21, by, W * 0.42, Math.max(2, H * 0.012));
+  ctx.fillRect(cx - half, by - thick / 2, half * 2, thick);
 }
 
 function faisaliah(ctx, cx, base, H, W, glow) {
